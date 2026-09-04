@@ -1,6 +1,6 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { supabase } from "../../lib/supabase";
 
 interface MediaItem {
   id: string;
@@ -74,6 +75,18 @@ export default function LogsScreen() {
       return timeA - timeB;
     }
   });
+
+  useEffect(() => {
+    async function requireAuth() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/login");
+      }
+    }
+    requireAuth();
+  }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-[#ECE8FC]">

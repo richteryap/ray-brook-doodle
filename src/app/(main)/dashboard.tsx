@@ -1,5 +1,7 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   Image,
   SafeAreaView,
@@ -8,9 +10,48 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { supabase } from "../../lib/supabase";
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const [username, setUsername] = useState("Loading...");
+
+  useFocusEffect(
+    useCallback(() => {
+      async function loadDashboardData() {
+        const cachedUsername = await AsyncStorage.getItem("cached_username");
+        if (cachedUsername) {
+          setUsername(cachedUsername);
+        }
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          router.replace("/login");
+          return;
+        }
+
+        const { data } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single();
+
+        if (data) {
+          if (data.username !== cachedUsername) {
+            setUsername(data.username);
+            await AsyncStorage.setItem("cached_username", data.username);
+          }
+        } else if (!cachedUsername) {
+          setUsername("User");
+        }
+      }
+
+      loadDashboardData();
+    }, []),
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-[#F3F4F6]">
@@ -23,7 +64,7 @@ export default function DashboardScreen() {
             />
           </View>
           <Text className="text-[#6B7280] ml-3 text-lg font-medium">
-            Richter Anthony
+            {username}
           </Text>
         </View>
 
