@@ -1,17 +1,21 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
 
   useEffect(() => {
     async function requireAuth() {
@@ -26,10 +30,12 @@ export default function LibraryScreen() {
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#ECE8FC]">
-      <View className="flex-row items-center bg-white p-3 shadow-sm">
-        <Feather name="play-circle" size={16} color="black" />
-        <Text className="text-[#6B7280] ml-2 text-sm font-medium">Library</Text>
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
+      <View className="flex-row items-center bg-white dark:bg-slate-800 px-3 py-4 mt-10 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <Ionicons name="library" size={24} color={isDark ? "white" : "black"} />
+        <Text className="text-slate-500 dark:text-slate-400 ml-2 text-md font-medium">
+          Library
+        </Text>
       </View>
       <ScrollView
         className="flex-1 px-4"
@@ -42,14 +48,14 @@ export default function LibraryScreen() {
             onPress={() => router.push("/dashboard")}
             className="flex-row items-center mb-4"
           >
-            <Ionicons name="arrow-back" size={18} color="#6D28D9" />
-            <Text className="ml-1 text-sm font-semibold text-purple-700">
+            <Ionicons name="arrow-back" size={18} color={primaryColor} />
+            <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
               Back
             </Text>
           </TouchableOpacity>
         </View>
-        <View className="flex-1 items-center justify-center bg-white">
-          <Text className="text-xl font-bold text-slate-900">
+        <View className="flex-1 items-center justify-center bg-transparent mt-10">
+          <Text className="text-xl font-bold text-slate-900 dark:text-white">
             Library coming soon!
           </Text>
         </View>

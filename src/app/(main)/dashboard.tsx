@@ -4,16 +4,22 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Image,
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const iconMuted = isDark ? "#94a3b8" : "#6B7280";
+
   const [username, setUsername] = useState("Loading...");
 
   useFocusEffect(
@@ -54,16 +60,16 @@ export default function DashboardScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F3F4F6]">
-      <View className="flex-row items-center justify-between px-6 py-4 bg-white border-b border-purple-100">
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
+      <View className="flex-row items-center justify-between px-6 py-4 mt-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
         <View className="flex-row items-center">
-          <View className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center overflow-hidden">
+          <View className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 items-center justify-center overflow-hidden">
             <Image
               source={require("../../../assets/images/logo.png")}
               className="w-full h-full object-contain"
             />
           </View>
-          <Text className="text-[#6B7280] ml-3 text-lg font-medium">
+          <Text className="text-slate-600 dark:text-slate-300 ml-3 text-lg font-medium">
             {username}
           </Text>
         </View>
@@ -71,18 +77,18 @@ export default function DashboardScreen() {
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => router.push("/account")}
-          className="w-10 h-10 rounded-full bg-purple-50 items-center justify-center border border-purple-200"
+          className="w-10 h-10 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center border border-blue-200 dark:border-slate-600"
         >
-          <Feather name="user" size={20} color="#6D28D9" />
+          <Feather name="user" size={20} color={primaryColor} />
         </TouchableOpacity>
       </View>
       <ScrollView
         className="flex-1 px-4 pt-6"
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row items-center bg-white p-3.5 rounded-lg shadow-sm mb-4">
-          <Ionicons name="home" size={16} color="#6B7280" />
-          <Text className="text-[#6B7280] ml-2 text-sm font-medium">
+        <View className="flex-row items-center bg-white dark:bg-slate-800 p-3.5 rounded-lg shadow-sm mb-4 border border-slate-200 dark:border-slate-700">
+          <Ionicons name="home" size={16} color={iconMuted} />
+          <Text className="text-slate-500 dark:text-slate-400 ml-2 text-sm font-medium">
             Dashboard
           </Text>
         </View>
@@ -115,7 +121,7 @@ export default function DashboardScreen() {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => router.push("/logs")}
-            className="w-[48%] h-44 bg-[#8B5CF6] rounded-3xl p-4 justify-between shadow-sm"
+            className="w-[48%] h-44 bg-[#3B82F6] rounded-3xl p-4 justify-between shadow-sm"
           >
             <View className="items-center justify-center flex-1">
               <Feather name="list" size={60} color="white" />

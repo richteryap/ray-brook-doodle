@@ -4,16 +4,21 @@ import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   Text,
   TextInput,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const iconMuted = isDark ? "#94a3b8" : "#64748b";
+
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -85,43 +90,45 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#ECE8FC]">
+    <SafeAreaView className="flex-1 w-full h-full bg-slate-50 dark:bg-slate-900">
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 justify-center items-center p-5"
+        className="flex-1 w-full h-full justify-center items-center p-5 bg-slate-50 dark:bg-slate-900"
       >
-        <View className="w-full max-w-sm bg-white p-7 rounded-[32px] shadow-sm border border-purple-100">
+        <View className="w-full max-w-sm bg-white dark:bg-slate-800 p-7 rounded-[32px] shadow-sm border border-slate-200 dark:border-slate-700">
           <View className="items-center mb-6">
-            <Text className="text-3xl font-bold text-slate-900 mb-2">
+            <Text className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
               Register
             </Text>
-            <Text className="text-sm text-slate-500 text-center">
+            <Text className="text-sm text-slate-500 dark:text-slate-400 text-center">
               Create an account to track your watchlist.
             </Text>
           </View>
 
           {authError ? (
-            <View className="bg-red-50 p-3 rounded-xl border border-red-100 mb-4 flex-row items-center">
+            <View className="bg-red-50 dark:bg-red-500/10 p-3 rounded-xl border border-red-100 dark:border-red-500/20 mb-4 flex-row items-center">
               <Feather name="alert-circle" size={16} color="#ef4444" />
-              <Text className="ml-2 text-sm text-red-600 flex-1">
+              <Text className="ml-2 text-sm text-red-600 dark:text-red-400 flex-1">
                 {authError}
               </Text>
             </View>
           ) : null}
 
           {authSuccess ? (
-            <View className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 mb-4 flex-row items-center">
+            <View className="bg-emerald-50 dark:bg-emerald-500/10 p-3 rounded-xl border border-emerald-100 dark:border-emerald-500/20 mb-4 flex-row items-center">
               <Feather name="check-circle" size={16} color="#10b981" />
-              <Text className="ml-2 text-sm text-emerald-600 flex-1">
+              <Text className="ml-2 text-sm text-emerald-600 dark:text-emerald-400 flex-1">
                 {authSuccess}
               </Text>
             </View>
           ) : null}
 
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-slate-500 mb-1">
+            <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
               Username{" "}
-              <Text className="text-slate-400 font-normal">(Optional)</Text>
+              <Text className="text-slate-400 dark:text-slate-500 font-normal">
+                (Optional)
+              </Text>
             </Text>
             <TextInput
               value={username}
@@ -134,14 +141,14 @@ export default function RegisterScreen() {
               returnKeyType="next"
               onSubmitEditing={() => emailRef.current?.focus()}
               blurOnSubmit={false}
-              className="text-base text-slate-900 py-2 border-b border-slate-300 outline-none"
+              className="text-base text-slate-900 dark:text-white py-2 border-b border-slate-300 dark:border-slate-600 outline-none bg-transparent"
               placeholder="Choose a username"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
             />
           </View>
 
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-slate-500 mb-1">
+            <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
               Email
               {hasSubmitted && !email && (
                 <Text className="text-red-500"> *</Text>
@@ -160,11 +167,13 @@ export default function RegisterScreen() {
               returnKeyType="next"
               onSubmitEditing={() => passwordRef.current?.focus()}
               blurOnSubmit={false}
-              className={`text-base text-slate-900 py-2 border-b outline-none ${
-                hasSubmitted && !email ? "border-red-500" : "border-slate-300"
+              className={`text-base text-slate-900 dark:text-white py-2 border-b outline-none bg-transparent ${
+                hasSubmitted && !email
+                  ? "border-red-500"
+                  : "border-slate-300 dark:border-slate-600"
               }`}
               placeholder="Enter your email"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
             />
             {hasSubmitted && !email && (
               <Text className="text-xs text-red-500 mt-1">
@@ -174,7 +183,7 @@ export default function RegisterScreen() {
           </View>
 
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-slate-500 mb-1">
+            <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
               Password
               {hasSubmitted && !password && (
                 <Text className="text-red-500"> *</Text>
@@ -184,7 +193,7 @@ export default function RegisterScreen() {
               className={`flex-row items-center border-b ${
                 hasSubmitted && !password
                   ? "border-red-500"
-                  : "border-slate-300"
+                  : "border-slate-300 dark:border-slate-600"
               }`}
             >
               <TextInput
@@ -199,9 +208,9 @@ export default function RegisterScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                 blurOnSubmit={false}
-                className="flex-1 text-base text-slate-900 py-2 outline-none"
+                className="flex-1 text-base text-slate-900 dark:text-white py-2 outline-none bg-transparent"
                 placeholder="Create a password"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
               />
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -211,7 +220,7 @@ export default function RegisterScreen() {
                 <Feather
                   name={showPassword ? "eye" : "eye-off"}
                   size={18}
-                  color="#64748b"
+                  color={iconMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -223,7 +232,7 @@ export default function RegisterScreen() {
           </View>
 
           <View className="mb-8">
-            <Text className="text-sm font-semibold text-slate-500 mb-1">
+            <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
               Confirm Password
               {hasSubmitted && !confirmPassword && (
                 <Text className="text-red-500"> *</Text>
@@ -233,7 +242,7 @@ export default function RegisterScreen() {
               className={`flex-row items-center border-b ${
                 hasSubmitted && !confirmPassword
                   ? "border-red-500"
-                  : "border-slate-300"
+                  : "border-slate-300 dark:border-slate-600"
               }`}
             >
               <TextInput
@@ -247,9 +256,9 @@ export default function RegisterScreen() {
                 secureTextEntry={!showConfirmPassword}
                 returnKeyType="done"
                 onSubmitEditing={handleRegister}
-                className="flex-1 text-base text-slate-900 py-2 outline-none"
+                className="flex-1 text-base text-slate-900 dark:text-white py-2 outline-none bg-transparent"
                 placeholder="Retype your password"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
               />
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -259,7 +268,7 @@ export default function RegisterScreen() {
                 <Feather
                   name={showConfirmPassword ? "eye" : "eye-off"}
                   size={18}
-                  color="#64748b"
+                  color={iconMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -275,7 +284,9 @@ export default function RegisterScreen() {
             onPress={handleRegister}
             disabled={loading}
             className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${
-              loading ? "bg-purple-400" : "bg-purple-600"
+              loading
+                ? "bg-blue-400 dark:bg-blue-500/50"
+                : "bg-blue-600 dark:bg-blue-500"
             }`}
           >
             <Text className="text-white text-base font-bold">
@@ -284,11 +295,13 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <View className="flex-row justify-center mt-6">
-            <Text className="text-sm text-slate-500">
+            <Text className="text-sm text-slate-500 dark:text-slate-400">
               Already have an account?{" "}
             </Text>
             <TouchableOpacity onPress={() => router.push("/login")}>
-              <Text className="text-sm font-bold text-purple-700">Log in</Text>
+              <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                Log in
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

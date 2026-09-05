@@ -6,16 +6,22 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  SafeAreaView,
   Text,
   TextInput,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const iconMuted = isDark ? "#94a3b8" : "#64748b";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -187,16 +193,16 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#ECE8FC]">
+    <SafeAreaView className="flex-1 w-full h-full bg-slate-50 dark:bg-slate-900">
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 justify-center items-center p-5"
+        className="flex-1 w-full h-full justify-center items-center p-5 bg-slate-50 dark:bg-slate-900"
       >
-        <View className="w-full max-w-sm bg-white p-7 rounded-[32px] shadow-sm border border-purple-100">
+        <View className="w-full max-w-sm bg-white dark:bg-slate-800 p-7 rounded-[32px] shadow-sm border border-slate-200 dark:border-slate-700">
           {authError ? (
-            <View className="bg-red-50 p-3 rounded-xl border border-red-100 mb-6 flex-row items-center">
+            <View className="bg-red-50 dark:bg-red-500/10 p-3 rounded-xl border border-red-100 dark:border-red-500/20 mb-6 flex-row items-center">
               <Feather name="alert-circle" size={16} color="#ef4444" />
-              <Text className="ml-2 text-sm text-red-600 flex-1">
+              <Text className="ml-2 text-sm text-red-600 dark:text-red-400 flex-1">
                 {authError}
               </Text>
             </View>
@@ -205,23 +211,23 @@ export default function LoginScreen() {
           {isResettingPassword ? (
             <>
               <View className="items-center mb-8">
-                <Text className="text-3xl font-bold text-slate-900 mb-2">
+                <Text className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
                   New Password
                 </Text>
-                <Text className="text-sm text-slate-500 text-center">
+                <Text className="text-sm text-slate-500 dark:text-slate-400 text-center">
                   Create a new secure password.
                 </Text>
               </View>
 
               <View className="mb-6">
-                <Text className="text-sm font-semibold text-slate-500 mb-1">
+                <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
                   New Password{" "}
                   {hasSubmitted && !password && (
                     <Text className="text-red-500"> *</Text>
                   )}
                 </Text>
                 <View
-                  className={`flex-row items-center border-b ${hasSubmitted && !password ? "border-red-500" : "border-slate-300"}`}
+                  className={`flex-row items-center border-b ${hasSubmitted && !password ? "border-red-500" : "border-slate-300 dark:border-slate-600"}`}
                 >
                   <TextInput
                     value={password}
@@ -233,9 +239,9 @@ export default function LoginScreen() {
                     returnKeyType="next"
                     onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                     blurOnSubmit={false}
-                    className="flex-1 text-base text-slate-900 py-2 outline-none"
+                    className="flex-1 text-base text-slate-900 dark:text-white py-2 outline-none bg-transparent"
                     placeholder="Create a password"
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
                   />
                   <TouchableOpacity
                     activeOpacity={0.7}
@@ -245,21 +251,21 @@ export default function LoginScreen() {
                     <Feather
                       name={showPassword ? "eye" : "eye-off"}
                       size={18}
-                      color="#64748b"
+                      color={iconMuted}
                     />
                   </TouchableOpacity>
                 </View>
               </View>
 
               <View className="mb-8">
-                <Text className="text-sm font-semibold text-slate-500 mb-1">
+                <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
                   Confirm Password{" "}
                   {hasSubmitted && !confirmPassword && (
                     <Text className="text-red-500"> *</Text>
                   )}
                 </Text>
                 <View
-                  className={`flex-row items-center border-b ${hasSubmitted && !confirmPassword ? "border-red-500" : "border-slate-300"}`}
+                  className={`flex-row items-center border-b ${hasSubmitted && !confirmPassword ? "border-red-500" : "border-slate-300 dark:border-slate-600"}`}
                 >
                   <TextInput
                     ref={confirmPasswordRef}
@@ -271,9 +277,9 @@ export default function LoginScreen() {
                     secureTextEntry={!showConfirmPassword}
                     returnKeyType="done"
                     onSubmitEditing={handleSetNewPassword}
-                    className="flex-1 text-base text-slate-900 py-2 outline-none"
+                    className="flex-1 text-base text-slate-900 dark:text-white py-2 outline-none bg-transparent"
                     placeholder="Retype your password"
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
                   />
                   <TouchableOpacity
                     activeOpacity={0.7}
@@ -283,7 +289,7 @@ export default function LoginScreen() {
                     <Feather
                       name={showConfirmPassword ? "eye" : "eye-off"}
                       size={18}
-                      color="#64748b"
+                      color={iconMuted}
                     />
                   </TouchableOpacity>
                 </View>
@@ -293,7 +299,7 @@ export default function LoginScreen() {
                 activeOpacity={0.8}
                 onPress={handleSetNewPassword}
                 disabled={loading}
-                className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${loading ? "bg-purple-400" : "bg-purple-600"}`}
+                className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${loading ? "bg-blue-400 dark:bg-blue-500/50" : "bg-blue-600 dark:bg-blue-500"}`}
               >
                 <Text className="text-white text-base font-bold">
                   {loading ? "Updating..." : "Save Password"}
@@ -303,17 +309,19 @@ export default function LoginScreen() {
           ) : (
             <>
               <View className="items-center mb-8">
-                <View className="w-16 h-16 rounded-2xl bg-purple-50 items-center justify-center overflow-hidden mb-4">
+                <View className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-slate-700 items-center justify-center overflow-hidden mb-4">
                   <Image
                     source={require("../../../assets/images/logo.png")}
                     className="w-10 h-10 object-contain"
                   />
                 </View>
-                <Text className="text-3xl font-bold text-slate-900">Login</Text>
+                <Text className="text-3xl font-bold text-slate-900 dark:text-white">
+                  Login
+                </Text>
               </View>
 
               <View className="mb-6">
-                <Text className="text-sm font-semibold text-slate-500 mb-1">
+                <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
                   Email{" "}
                   {hasSubmitted && !email && (
                     <Text className="text-red-500"> *</Text>
@@ -330,21 +338,21 @@ export default function LoginScreen() {
                   returnKeyType="next"
                   onSubmitEditing={() => passwordRef.current?.focus()}
                   blurOnSubmit={false}
-                  className={`text-base text-slate-900 py-2 border-b outline-none ${hasSubmitted && !email ? "border-red-500" : "border-slate-300"}`}
+                  className={`text-base text-slate-900 dark:text-white py-2 border-b outline-none bg-transparent ${hasSubmitted && !email ? "border-red-500" : "border-slate-300 dark:border-slate-600"}`}
                   placeholder="Enter your email"
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
                 />
               </View>
 
               <View className="mb-6">
-                <Text className="text-sm font-semibold text-slate-500 mb-1">
+                <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
                   Password{" "}
                   {hasSubmitted && !password && (
                     <Text className="text-red-500"> *</Text>
                   )}
                 </Text>
                 <View
-                  className={`flex-row items-center border-b ${hasSubmitted && !password ? "border-red-500" : "border-slate-300"}`}
+                  className={`flex-row items-center border-b ${hasSubmitted && !password ? "border-red-500" : "border-slate-300 dark:border-slate-600"}`}
                 >
                   <TextInput
                     ref={passwordRef}
@@ -356,9 +364,9 @@ export default function LoginScreen() {
                     secureTextEntry={!showPassword}
                     returnKeyType="done"
                     onSubmitEditing={handleLogin}
-                    className="flex-1 text-base text-slate-900 py-2 outline-none"
+                    className="flex-1 text-base text-slate-900 dark:text-white py-2 outline-none bg-transparent"
                     placeholder="Enter your password"
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor={isDark ? "#64748b" : "#94a3b8"}
                   />
                   <TouchableOpacity
                     activeOpacity={0.7}
@@ -368,7 +376,7 @@ export default function LoginScreen() {
                     <Feather
                       name={showPassword ? "eye" : "eye-off"}
                       size={18}
-                      color="#64748b"
+                      color={iconMuted}
                     />
                   </TouchableOpacity>
                 </View>
@@ -379,7 +387,7 @@ export default function LoginScreen() {
                   activeOpacity={0.7}
                   onPress={handleForgotPassword}
                 >
-                  <Text className="text-sm font-bold text-purple-700">
+                  <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
                     Forgot Password?
                   </Text>
                 </TouchableOpacity>
@@ -389,7 +397,7 @@ export default function LoginScreen() {
                 activeOpacity={0.8}
                 onPress={handleLogin}
                 disabled={loading}
-                className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${loading ? "bg-purple-400" : "bg-purple-600"}`}
+                className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${loading ? "bg-blue-400 dark:bg-blue-500/50" : "bg-blue-600 dark:bg-blue-500"}`}
               >
                 <Text className="text-white text-base font-bold">
                   {loading ? "Logging in..." : "Log in"}
@@ -397,11 +405,11 @@ export default function LoginScreen() {
               </TouchableOpacity>
 
               <View className="flex-row justify-center mt-6">
-                <Text className="text-sm text-slate-500">
+                <Text className="text-sm text-slate-500 dark:text-slate-400">
                   Don't have an account?{" "}
                 </Text>
                 <TouchableOpacity onPress={() => router.push("/register")}>
-                  <Text className="text-sm font-bold text-purple-700">
+                  <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
                     Register
                   </Text>
                 </TouchableOpacity>
@@ -419,21 +427,21 @@ export default function LoginScreen() {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1 justify-center items-center bg-black/40 p-5"
+          className="flex-1 w-full h-full justify-center items-center bg-black/50 p-5"
         >
-          <View className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-sm items-center">
-            <View className="w-16 h-16 rounded-full bg-purple-100 items-center justify-center mb-4">
-              <Feather name="mail" size={24} color="#6D28D9" />
+          <View className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 items-center">
+            <View className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 items-center justify-center mb-4">
+              <Feather name="mail" size={24} color={primaryColor} />
             </View>
-            <Text className="text-xl font-bold text-slate-900 mb-2 text-center">
+            <Text className="text-xl font-bold text-slate-900 dark:text-white mb-2 text-center">
               {popupConfig.title}
             </Text>
-            <Text className="text-sm text-slate-500 mb-6 text-center">
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-6 text-center">
               {popupConfig.description}
             </Text>
             <TouchableOpacity
               onPress={handleCloseModal}
-              className="w-full py-4 rounded-xl bg-purple-600 items-center"
+              className="w-full py-4 rounded-xl bg-blue-600 dark:bg-blue-500 items-center"
             >
               <Text className="text-white font-bold text-base">Got it</Text>
             </TouchableOpacity>

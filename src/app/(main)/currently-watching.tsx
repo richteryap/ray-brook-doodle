@@ -2,12 +2,13 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 
 interface MediaItem {
@@ -20,6 +21,11 @@ interface MediaItem {
 
 export default function CurrentlyWatchingScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const iconMuted = isDark ? "#94a3b8" : "#64748b";
+
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">(
     "Chronological",
@@ -80,10 +86,14 @@ export default function CurrentlyWatchingScreen() {
   });
 
   return (
-    <SafeAreaView className="flex-1 bg-[#ECE8FC]">
-      <View className="flex-row items-center bg-white p-3 shadow-sm">
-        <Feather name="play-circle" size={16} color="black" />
-        <Text className="text-[#6B7280] ml-2 text-sm font-medium">
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
+      <View className="flex-row items-center bg-white dark:bg-slate-800 px-3 py-4 mt-10 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <Feather
+          name="play-circle"
+          size={24}
+          color={isDark ? "white" : "black"}
+        />
+        <Text className="text-slate-500 dark:text-slate-400 ml-2 text-md font-medium">
           Currently Watching
         </Text>
       </View>
@@ -98,28 +108,28 @@ export default function CurrentlyWatchingScreen() {
             onPress={() => router.push("/dashboard")}
             className="flex-row items-center mb-4"
           >
-            <Ionicons name="arrow-back" size={18} color="#6D28D9" />
-            <Text className="ml-1 text-sm font-semibold text-purple-700">
+            <Ionicons name="arrow-back" size={18} color={primaryColor} />
+            <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
               Back
             </Text>
           </TouchableOpacity>
 
           <View className="flex-row items-center">
-            <Text className="text-sm font-medium text-slate-500">
+            <Text className="text-sm font-medium text-slate-500 dark:text-slate-400">
               Sort By:{" "}
             </Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={toggleSort}
-              className="flex-row items-center bg-purple-100 px-2 py-1 rounded"
+              className="flex-row items-center bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded"
             >
-              <Text className="text-sm font-bold text-purple-700">
+              <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
                 {sortOrder}
               </Text>
               <Feather
                 name={sortOrder === "Chronological" ? "arrow-down" : "arrow-up"}
                 size={14}
-                color="#6D28D9"
+                color={primaryColor}
                 className="ml-1"
               />
             </TouchableOpacity>
@@ -134,7 +144,7 @@ export default function CurrentlyWatchingScreen() {
             return (
               <View
                 key={item.id}
-                className="relative bg-white border-slate-200 shadow-sm overflow-hidden"
+                className="relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
               >
                 <View
                   className={`absolute top-0 left-0 px-4 py-0 rounded-br-xl z-10 ${
@@ -146,10 +156,10 @@ export default function CurrentlyWatchingScreen() {
                   </Text>
                 </View>
 
-                <View className="flex-row items-center justify-between pt-3 pb-1 px-3 border-b border-slate-200">
+                <View className="flex-row items-center justify-between pt-3 pb-1 px-3 border-b border-slate-200 dark:border-slate-700">
                   <View className="flex-1 pr-4">
                     <Text
-                      className="text-sm font-bold text-slate-900"
+                      className="text-sm font-bold text-slate-900 dark:text-white"
                       numberOfLines={2}
                     >
                       {item.title}
@@ -158,14 +168,18 @@ export default function CurrentlyWatchingScreen() {
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => router.push(`/title/${item.id}`)}
-                    className="w-8 h-8 rounded-full bg-purple-100 items-center justify-center"
+                    className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center"
                   >
-                    <Feather name="arrow-up-right" size={16} color="#6D28D9" />
+                    <Feather
+                      name="arrow-up-right"
+                      size={16}
+                      color={primaryColor}
+                    />
                   </TouchableOpacity>
                 </View>
 
-                <View className="flex-1 py-1 px-3 border-r border-slate-200 justify-center bg-slate-50/50">
-                  <Text className="text-sm font-bold text-slate-700">
+                <View className="flex-1 py-1 px-3 border-r border-slate-200 dark:border-slate-700 justify-center bg-slate-50/50 dark:bg-slate-800">
+                  <Text className="text-sm font-bold text-slate-700 dark:text-slate-300">
                     Episode {item.currentEpisode}
                     {item.totalEpisodes
                       ? ` out of ${item.totalEpisodes} Total Episodes`
@@ -174,8 +188,8 @@ export default function CurrentlyWatchingScreen() {
                 </View>
 
                 <View className="flex-row">
-                  <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50">
-                    <Text className="text-xs font-bold text-slate-800">
+                  <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50 dark:bg-slate-800">
+                    <Text className="text-xs font-bold text-slate-600 dark:text-slate-400">
                       Last Watched: {item.lastWatched}
                     </Text>
                   </View>
