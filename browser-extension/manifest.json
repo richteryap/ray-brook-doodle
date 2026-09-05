@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "LogStream Serverless",
-  "version": "2.0",
+  "name": "Ray Brook Logs",
+  "version": "1.0",
   "description": "Manual Media Stream Tracker (Supabase Edition)",
   "permissions": [
     "activeTab",
