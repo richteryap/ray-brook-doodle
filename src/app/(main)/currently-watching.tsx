@@ -18,49 +18,9 @@ interface MediaItem {
   lastWatched: string;
 }
 
-const SAMPLE_DATA: MediaItem[] = [
-  {
-    id: "1",
-    title: "Solo Leveling",
-    currentEpisode: 12,
-    totalEpisodes: 24,
-    lastWatched: "08/29/2026 10:45 AM",
-  },
-  {
-    id: "2",
-    title: "Frieren: Beyond Journey’s End",
-    currentEpisode: 5,
-    totalEpisodes: 28,
-    lastWatched: "08/25/2026 08:30 PM",
-  },
-  {
-    id: "3",
-    title: "Jujutsu Kaisen Season 2",
-    currentEpisode: 18,
-    totalEpisodes: 24,
-    lastWatched: "08/19/2026 09:15 PM",
-  },
-  {
-    id: "4",
-    title:
-      "Though I Am an Inept Villainess: Tale of the Butterfly-Rat Body Swap in the Maiden Court",
-    currentEpisode: 8,
-    totalEpisodes: 12,
-    lastWatched: "08/15/2026 07:00 PM",
-  },
-  {
-    id: "5",
-    title:
-      "Trapped in a Dating Sim: The World of Otome Games is Tough for Mobs 2nd Season",
-    currentEpisode: 8,
-    totalEpisodes: 12,
-    lastWatched: "08/31/2026 06:30 PM",
-  },
-];
-
 export default function CurrentlyWatchingScreen() {
   const router = useRouter();
-  const [items] = useState<MediaItem[]>(SAMPLE_DATA);
+  const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">(
     "Chronological",
   );
@@ -72,15 +32,40 @@ export default function CurrentlyWatchingScreen() {
   };
 
   useEffect(() => {
-    async function requireAuth() {
+    async function fetchActiveShows() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
         router.replace("/login");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("active_shows")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("Error fetching active shows:", error);
+      } else if (data) {
+        const formatted: MediaItem[] = data.map((row) => ({
+          id: row.id,
+          title: row.show_name,
+          currentEpisode: row.latest_episode,
+          totalEpisodes: row.total_episodes,
+          lastWatched: new Date(row.updated_at).toLocaleString("en-US", {
+            month: "2-digit",
+            day: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }));
+        setItems(formatted);
       }
     }
-    requireAuth();
+    fetchActiveShows();
   }, []);
 
   const sortedItems = [...items].sort((a, b) => {

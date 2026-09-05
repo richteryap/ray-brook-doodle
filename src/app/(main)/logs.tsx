@@ -17,44 +17,9 @@ interface MediaItem {
   lastWatched: string;
 }
 
-const SAMPLE_DATA: MediaItem[] = [
-  {
-    id: "1",
-    title: "Solo Leveling",
-    currentEpisode: 12,
-    lastWatched: "08/29/2026 10:45 AM",
-  },
-  {
-    id: "2",
-    title: "Frieren: Beyond Journey’s End",
-    currentEpisode: 28,
-    lastWatched: "08/25/2026 08:30 PM",
-  },
-  {
-    id: "3",
-    title: "Jujutsu Kaisen Season 2",
-    currentEpisode: 18,
-    lastWatched: "08/19/2026 09:15 PM",
-  },
-  {
-    id: "4",
-    title:
-      "Though I Am an Inept Villainess: Tale of the Butterfly-Rat Body Swap in the Maiden Court",
-    currentEpisode: 8,
-    lastWatched: "08/15/2026 07:00 PM",
-  },
-  {
-    id: "5",
-    title:
-      "Trapped in a Dating Sim: The World of Otome Games is Tough for Mobs 2nd Season",
-    currentEpisode: 8,
-    lastWatched: "08/31/2026 06:30 PM",
-  },
-];
-
 export default function LogsScreen() {
   const router = useRouter();
-  const [items] = useState<MediaItem[]>(SAMPLE_DATA);
+  const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Newest First" | "Oldest First">(
     "Newest First",
   );
@@ -64,6 +29,42 @@ export default function LogsScreen() {
       prev === "Newest First" ? "Oldest First" : "Newest First",
     );
   };
+
+  useEffect(() => {
+    async function fetchLogs() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("logs")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("Error fetching logs:", error);
+      } else if (data) {
+        const formatted: MediaItem[] = data.map((row) => ({
+          id: row.id,
+          title: row.show_name,
+          currentEpisode: row.episode,
+          lastWatched: new Date(row.created_at).toLocaleString("en-US", {
+            month: "2-digit",
+            day: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }));
+        setItems(formatted);
+      }
+    }
+    fetchLogs();
+  }, []);
 
   const sortedItems = [...items].sort((a, b) => {
     const timeA = new Date(a.lastWatched).getTime();
@@ -75,18 +76,6 @@ export default function LogsScreen() {
       return timeA - timeB;
     }
   });
-
-  useEffect(() => {
-    async function requireAuth() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-      }
-    }
-    requireAuth();
-  }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-[#ECE8FC]">
