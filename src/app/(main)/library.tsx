@@ -31,7 +31,7 @@ export default function LibraryScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
-      <View className="flex-row items-center bg-white dark:bg-slate-800 px-3 py-4 mt-10 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+      <View className="flex-row items-center bg-white dark:bg-slate-800 px-3 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <Ionicons name="library" size={24} color={isDark ? "white" : "black"} />
         <Text className="text-slate-500 dark:text-slate-400 ml-2 text-md font-medium">
           Library

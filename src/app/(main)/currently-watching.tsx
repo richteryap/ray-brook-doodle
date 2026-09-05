@@ -87,7 +87,7 @@ export default function CurrentlyWatchingScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
-      <View className="flex-row items-center bg-white dark:bg-slate-800 px-3 py-4 mt-10 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+      <View className="flex-row items-center bg-white dark:bg-slate-800 px-3 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <Feather
           name="play-circle"
           size={24}

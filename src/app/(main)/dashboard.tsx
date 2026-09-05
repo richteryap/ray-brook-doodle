@@ -61,7 +61,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
-      <View className="flex-row items-center justify-between px-6 py-4 mt-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+      <View className="flex-row items-center justify-between px-6 py-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
         <View className="flex-row items-center">
           <View className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 items-center justify-center overflow-hidden">
             <Image

@@ -28,8 +28,6 @@ export default function AccountScreen() {
 
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("Loading...");
-
-  // Track the actual selected preference to display in the UI
   const [themePref, setThemePref] = useState<"system" | "light" | "dark">(
     "system",
   );
@@ -231,7 +229,7 @@ export default function AccountScreen() {
   return (
     <SafeAreaView className="flex-1 w-full h-full bg-slate-50 dark:bg-slate-900">
       <ScrollView
-        className="flex-1 w-full h-full px-4 mt-10 bg-slate-50 dark:bg-slate-900"
+        className="flex-1 w-full h-full px-4 bg-slate-50 dark:bg-slate-900"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
