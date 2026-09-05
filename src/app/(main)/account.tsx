@@ -1,6 +1,8 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { File, Paths } from "expo-file-system";
 import { useRouter } from "expo-router";
+import * as Sharing from "expo-sharing";
 import { useColorScheme } from "nativewind";
 import { useEffect, useState } from "react";
 import {
@@ -15,17 +17,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
+import { useSync } from "../../lib/SyncContext";
 
 type EditType = "username" | "email" | "password" | null;
 
 export default function AccountScreen() {
   const router = useRouter();
-
   const { colorScheme, setColorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
-
+  const { activeShows, logs } = useSync();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("Loading...");
   const [themePref, setThemePref] = useState<"system" | "light" | "dark">(
@@ -38,6 +40,7 @@ export default function AccountScreen() {
   const [confirmEditValue, setConfirmEditValue] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [popupVisible, setPopupVisible] = useState(false);
   const [popupConfig, setPopupConfig] = useState({
@@ -226,6 +229,78 @@ export default function AccountScreen() {
     await AsyncStorage.setItem("app_theme", nextTheme);
   };
 
+  const handleExportData = async () => {
+    try {
+      setIsExporting(true);
+
+      // We read directly from the SyncContext offline cache so it works without an internet connection
+      let csvContent =
+        "Record Type,Show Name,Current Episode,Total Episodes,Timestamp\n";
+
+      if (activeShows) {
+        activeShows.forEach((show) => {
+          const safeTitle = `"${show.show_name.replace(/"/g, '""')}"`;
+          csvContent += `Active Show,${safeTitle},${show.latest_episode},${show.total_episodes || "N/A"},${show.updated_at}\n`;
+        });
+      }
+
+      if (logs) {
+        logs.forEach((log) => {
+          const safeTitle = `"${log.show_name.replace(/"/g, '""')}"`;
+          csvContent += `Watch Log,${safeTitle},${log.episode},N/A,${log.created_at}\n`;
+        });
+      }
+
+      const fileName = `Watchlist_Export_${new Date().toISOString().split("T")[0]}.csv`;
+
+      // Handle Web Downloads
+      if (Platform.OS === "web") {
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        setIsExporting(false);
+        showPopup("Export Complete", "Your CSV file has been downloaded.");
+        return;
+      }
+
+      const file = new File(Paths.document, fileName);
+
+      if (!file.exists) {
+        file.create();
+      }
+
+      file.write(csvContent);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: "text/csv",
+          dialogTitle: "Export Watchlist Data",
+        });
+      } else {
+        showPopup(
+          "Export Failed",
+          "File sharing is not supported on this device.",
+        );
+      }
+
+      setIsExporting(false);
+    } catch (error: any) {
+      setIsExporting(false);
+      showPopup(
+        "Export Failed",
+        error.message || "An unexpected error occurred.",
+      );
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 w-full h-full bg-slate-50 dark:bg-slate-900">
       <ScrollView
@@ -351,14 +426,19 @@ export default function AccountScreen() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity className="flex-row items-center justify-between px-4 py-3">
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleExportData}
+              disabled={isExporting}
+              className="flex-row items-center justify-between px-4 py-3"
+            >
               <View className="flex-row items-center">
                 <Feather name="database" size={18} color={iconMuted} />
                 <Text className="ml-3 text-sm font-medium text-slate-700 dark:text-slate-200">
-                  Export Data
+                  {isExporting ? "Exporting..." : "Export Data"}
                 </Text>
               </View>
-              <Feather name="chevron-right" size={18} color={iconMuted} />
+              <Feather name="download" size={18} color={iconMuted} />
             </TouchableOpacity>
           </View>
 
@@ -497,7 +577,9 @@ export default function AccountScreen() {
                   popupConfig.title.includes("Match") ||
                   popupConfig.title.includes("Weak")
                     ? "alert-circle"
-                    : "mail"
+                    : popupConfig.title.includes("Export")
+                      ? "download"
+                      : "mail"
                 }
                 size={24}
                 color={primaryColor}
