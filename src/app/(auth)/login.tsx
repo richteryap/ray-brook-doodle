@@ -37,12 +37,24 @@ export default function LoginScreen() {
   const isRecoveryRef = useRef(false);
 
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      window.location.hash.includes("type=recovery")
-    ) {
-      isRecoveryRef.current = true;
-      setIsResettingPassword(true);
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+
+      if (params.get("type") === "recovery") {
+        isRecoveryRef.current = true;
+        setIsResettingPassword(true);
+
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
+
+        if (access_token && refresh_token) {
+          supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+        }
+      }
     }
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
@@ -120,7 +132,11 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "http://localhost:8081/login",
+    });
+
     setLoading(false);
 
     if (error) {
