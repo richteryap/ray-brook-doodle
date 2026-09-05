@@ -4,14 +4,15 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Image,
+  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
+import { useSync } from "../../lib/SyncContext";
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -21,6 +22,9 @@ export default function DashboardScreen() {
   const iconMuted = isDark ? "#94a3b8" : "#6B7280";
 
   const [username, setUsername] = useState("Loading...");
+
+  // Pull sync state and action from our offline engine
+  const { isSyncing, syncWithCloud } = useSync();
 
   useFocusEffect(
     useCallback(() => {
@@ -74,13 +78,33 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => router.push("/account")}
-          className="w-10 h-10 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center border border-blue-200 dark:border-slate-600"
-        >
-          <Feather name="user" size={20} color={primaryColor} />
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-x-3">
+          {/* Manual Cloud Sync Button */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={syncWithCloud}
+            disabled={isSyncing}
+            className="w-10 h-10 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
+          >
+            {isSyncing ? (
+              <Feather name="refresh-cw" size={18} color={iconMuted} />
+            ) : (
+              <Ionicons
+                name="cloud-done-outline"
+                size={20}
+                color={primaryColor}
+              />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push("/account")}
+            className="w-10 h-10 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center border border-blue-200 dark:border-slate-600"
+          >
+            <Feather name="user" size={20} color={primaryColor} />
+          </TouchableOpacity>
+        </View>
       </View>
       <ScrollView
         className="flex-1 px-4 pt-6"

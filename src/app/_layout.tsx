@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useEffect } from "react";
 import "../global.css";
+import { SyncProvider } from "../lib/SyncContext";
 
 export default function RootLayout() {
   const { setColorScheme } = useColorScheme();
@@ -23,5 +24,9 @@ export default function RootLayout() {
     loadTheme();
   }, []);
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <SyncProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </SyncProvider>
+  );
 }

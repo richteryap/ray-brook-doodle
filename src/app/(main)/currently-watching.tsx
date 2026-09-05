@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../lib/supabase";
+import { useSync } from "../../lib/SyncContext";
 
 interface MediaItem {
   id: string;
@@ -26,6 +26,9 @@ export default function CurrentlyWatchingScreen() {
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
 
+  // Connect to our local offline database engine
+  const { activeShows, isSyncing, syncWithCloud } = useSync();
+
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">(
     "Chronological",
@@ -37,42 +40,25 @@ export default function CurrentlyWatchingScreen() {
     );
   };
 
+  // Load from the local SyncContext cache instead of waiting for Supabase
   useEffect(() => {
-    async function fetchActiveShows() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("active_shows")
-        .select("*")
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("Error fetching active shows:", error);
-      } else if (data) {
-        const formatted: MediaItem[] = data.map((row) => ({
-          id: row.id,
-          title: row.show_name,
-          currentEpisode: row.latest_episode,
-          totalEpisodes: row.total_episodes,
-          lastWatched: new Date(row.updated_at).toLocaleString("en-US", {
-            month: "2-digit",
-            day: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        }));
-        setItems(formatted);
-      }
+    if (activeShows) {
+      const formatted: MediaItem[] = activeShows.map((row: any) => ({
+        id: row.id,
+        title: row.show_name,
+        currentEpisode: row.latest_episode,
+        totalEpisodes: row.total_episodes,
+        lastWatched: new Date(row.updated_at).toLocaleString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      }));
+      setItems(formatted);
     }
-    fetchActiveShows();
-  }, []);
+  }, [activeShows]);
 
   const sortedItems = [...items].sort((a, b) => {
     const timeA = new Date(a.lastWatched).getTime();
@@ -87,15 +73,35 @@ export default function CurrentlyWatchingScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
-      <View className="flex-row items-center bg-white dark:bg-slate-800 px-3 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
-        <Feather
-          name="play-circle"
-          size={24}
-          color={isDark ? "white" : "black"}
-        />
-        <Text className="text-slate-500 dark:text-slate-400 ml-2 text-md font-medium">
-          Currently Watching
-        </Text>
+      <View className="flex-row items-center justify-between bg-white dark:bg-slate-800 px-3 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <View className="flex-row items-center">
+          <Feather
+            name="play-circle"
+            size={24}
+            color={isDark ? "white" : "black"}
+          />
+          <Text className="text-slate-500 dark:text-slate-400 ml-2 text-md font-medium">
+            Currently Watching
+          </Text>
+        </View>
+
+        {/* Sync Button */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={syncWithCloud}
+          disabled={isSyncing}
+          className="w-8 h-8 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
+        >
+          {isSyncing ? (
+            <Feather name="refresh-cw" size={14} color={iconMuted} />
+          ) : (
+            <Ionicons
+              name="cloud-done-outline"
+              size={16}
+              color={primaryColor}
+            />
+          )}
+        </TouchableOpacity>
       </View>
       <ScrollView
         className="flex-1 px-4"

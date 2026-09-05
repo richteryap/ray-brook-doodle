@@ -9,13 +9,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../lib/supabase";
+import { useSync } from "../../lib/SyncContext";
 
 interface MediaItem {
   id: string;
   title: string;
   currentEpisode: number;
   lastWatched: string;
+  rawDate: string;
 }
 
 export default function LogsScreen() {
@@ -23,6 +24,9 @@ export default function LogsScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const iconMuted = isDark ? "#94a3b8" : "#64748b";
+
+  const { logs, isSyncing, syncWithCloud } = useSync();
 
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Newest First" | "Oldest First">(
@@ -36,44 +40,27 @@ export default function LogsScreen() {
   };
 
   useEffect(() => {
-    async function fetchLogs() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("logs")
-        .select("*")
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("Error fetching logs:", error);
-      } else if (data) {
-        const formatted: MediaItem[] = data.map((row) => ({
-          id: row.id,
-          title: row.show_name,
-          currentEpisode: row.episode,
-          lastWatched: new Date(row.created_at).toLocaleString("en-US", {
-            month: "2-digit",
-            day: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        }));
-        setItems(formatted);
-      }
+    if (logs) {
+      const formatted: MediaItem[] = logs.map((row: any) => ({
+        id: row.id,
+        title: row.show_name,
+        currentEpisode: row.episode,
+        rawDate: row.created_at,
+        lastWatched: new Date(row.created_at).toLocaleString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      }));
+      setItems(formatted);
     }
-    fetchLogs();
-  }, []);
+  }, [logs]);
 
   const sortedItems = [...items].sort((a, b) => {
-    const timeA = new Date(a.lastWatched).getTime();
-    const timeB = new Date(b.lastWatched).getTime();
+    const timeA = new Date(a.rawDate).getTime();
+    const timeB = new Date(b.rawDate).getTime();
 
     if (sortOrder === "Newest First") {
       return timeB - timeA;
@@ -84,11 +71,34 @@ export default function LogsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
-      <View className="flex-row items-center bg-white dark:bg-slate-800 px-3 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
-        <Feather name="list" size={24} color={isDark ? "#94a3b8" : "#6B7280"} />
-        <Text className="text-slate-500 dark:text-slate-400 ml-2 text-md font-medium">
-          Logs
-        </Text>
+      <View className="flex-row items-center justify-between bg-white dark:bg-slate-800 px-3 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <View className="flex-row items-center">
+          <Feather
+            name="list"
+            size={24}
+            color={isDark ? "#94a3b8" : "#6B7280"}
+          />
+          <Text className="text-slate-500 dark:text-slate-400 ml-2 text-md font-medium">
+            Logs
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={syncWithCloud}
+          disabled={isSyncing}
+          className="w-8 h-8 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
+        >
+          {isSyncing ? (
+            <Feather name="refresh-cw" size={14} color={iconMuted} />
+          ) : (
+            <Ionicons
+              name="cloud-done-outline"
+              size={16}
+              color={primaryColor}
+            />
+          )}
+        </TouchableOpacity>
       </View>
       <ScrollView
         className="flex-1 px-4"
