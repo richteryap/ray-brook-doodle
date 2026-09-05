@@ -1,0 +1,58 @@
+javascript:(async function(){
+    let target = document.querySelector('.linetitle3');
+    if(!target) { alert("Title not found."); return; }
+
+    let rawTitle = target.innerText.replace(/"/g,'').replace(/\n/g,' ').replace(/\s+/g,' ').trim();
+    let showName = rawTitle;
+    let episode = 0;
+
+    let match = rawTitle.match(/(.*)\s+Episode\s+(\d+)/i);
+    if(match) {
+        showName = match[1].trim();
+        episode = parseInt(match[2], 10);
+    }
+
+    let totalEpisodes = null;
+    try {
+        let aniResponse = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+                query: 'query($search: String){ Media(search: $search, type: ANIME){ episodes } }',
+                variables: { search: showName }
+            })
+        });
+        let aniData = await aniResponse.json();
+        if(aniData?.data?.Media?.episodes) {
+            totalEpisodes = aniData.data.Media.episodes;
+        }
+    } catch(e) {
+        console.log("AniList fetch failed. Proceeding with null total.");
+    }
+
+    /* 2. Beam to Supabase */
+    const SUPABASE_URL = 'https://YOUR_PROJECT_REF.supabase.co/rest/v1/rpc/log_media_stream';
+    const ANON_KEY = 'YOUR_PUBLIC_ANON_KEY';
+    const API_KEY = 'YOUR_SECRET_PROFILE_API_KEY'; 
+
+    fetch(SUPABASE_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': ANON_KEY,
+            'Authorization': `Bearer ${ANON_KEY}`
+        },
+        body: JSON.stringify({
+            p_api_key: API_KEY,
+            p_raw_title: rawTitle,
+            p_show_name: showName,
+            p_episode: episode,
+            p_total_episodes: totalEpisodes
+        })
+    })
+    .then(response => {
+        if(!response.ok) throw new Error("Database rejected the request.");
+        alert(`Logged: ${showName} - Ep ${episode}`);
+    })
+    .catch(error => alert("Network Error. Is Supabase configured correctly?"));
+})();

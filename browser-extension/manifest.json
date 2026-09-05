@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "LogStream Serverless",
+  "version": "2.0",
+  "description": "Manual Media Stream Tracker (Supabase Edition)",
+  "permissions": [
+    "activeTab",
+    "notifications"
+  ],
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "host_permissions": [
+    "https://*.supabase.co/*",
+    "https://graphql.anilist.co/*"
+  ]
+}
