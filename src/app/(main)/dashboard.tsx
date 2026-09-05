@@ -4,13 +4,14 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Image,
-  SafeAreaView,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 import { useSync } from "../../lib/SyncContext";
 
@@ -23,8 +24,7 @@ export default function DashboardScreen() {
 
   const [username, setUsername] = useState("Loading...");
 
-  // Pull sync state and action from our offline engine
-  const { isSyncing, syncWithCloud } = useSync();
+  const { syncStatus, syncWithCloud } = useSync();
 
   useFocusEffect(
     useCallback(() => {
@@ -79,20 +79,34 @@ export default function DashboardScreen() {
         </View>
 
         <View className="flex-row items-center gap-x-3">
-          {/* Manual Cloud Sync Button */}
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={syncWithCloud}
-            disabled={isSyncing}
-            className="w-10 h-10 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
+            disabled={syncStatus === "syncing"}
+            className="w-8 h-8 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
           >
-            {isSyncing ? (
-              <Feather name="refresh-cw" size={18} color={iconMuted} />
-            ) : (
+            {syncStatus === "syncing" && (
+              <Feather name="refresh-cw" size={14} color={iconMuted} />
+            )}
+            {syncStatus === "synced" && (
               <Ionicons
                 name="cloud-done-outline"
-                size={20}
+                size={16}
                 color={primaryColor}
+              />
+            )}
+            {syncStatus === "offline" && (
+              <Ionicons
+                name="cloud-offline-outline"
+                size={16}
+                color="#ef4444"
+              />
+            )}
+            {syncStatus === "outdated" && (
+              <Ionicons
+                name="cloud-download-outline"
+                size={16}
+                color="#f59e0b"
               />
             )}
           </TouchableOpacity>
@@ -109,6 +123,14 @@ export default function DashboardScreen() {
       <ScrollView
         className="flex-1 px-4 pt-6"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={syncStatus === "syncing"}
+            onRefresh={syncWithCloud}
+            tintColor={primaryColor}
+            colors={[primaryColor]}
+          />
+        }
       >
         <View className="flex-row items-center bg-white dark:bg-slate-800 p-3.5 rounded-lg shadow-sm mb-4 border border-slate-200 dark:border-slate-700">
           <Ionicons name="home" size={16} color={iconMuted} />

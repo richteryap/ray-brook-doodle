@@ -1,22 +1,35 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import NetInfo from "@react-native-community/netinfo";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { AppState } from "react-native";
 import { supabase } from "./supabase";
 
+export type SyncStatus = "synced" | "syncing" | "offline" | "outdated";
+
 interface SyncContextType {
-  isSyncing: boolean;
+  syncStatus: SyncStatus;
   lastSynced: Date | null;
   activeShows: any[];
   logs: any[];
   syncWithCloud: () => Promise<void>;
+  markAsOutdated: () => void;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("offline");
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [activeShows, setActiveShows] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const isSyncingRef = useRef(false);
 
   useEffect(() => {
     async function loadLocalData() {
@@ -27,19 +40,31 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (cachedShows) setActiveShows(JSON.parse(cachedShows));
       if (cachedLogs) setLogs(JSON.parse(cachedLogs));
       if (cachedSyncTime) setLastSynced(new Date(cachedSyncTime));
-
-      syncWithCloud();
     }
     loadLocalData();
   }, []);
 
-  const syncWithCloud = async () => {
-    setIsSyncing(true);
+  const syncWithCloud = useCallback(async () => {
+    if (isSyncingRef.current) return;
+
+    const netState = await NetInfo.fetch();
+    if (!netState.isConnected) {
+      setSyncStatus("offline");
+      return;
+    }
+
+    isSyncingRef.current = true;
+    setSyncStatus("syncing");
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setSyncStatus("offline");
+        isSyncingRef.current = false;
+        return;
+      }
 
       const [showsRes, logsRes] = await Promise.all([
         supabase.from("active_shows").select("*").eq("user_id", user.id),
@@ -49,29 +74,94 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (showsRes.error) throw showsRes.error;
       if (logsRes.error) throw logsRes.error;
 
-      // Update State
       setActiveShows(showsRes.data || []);
       setLogs(logsRes.data || []);
 
       const now = new Date();
       setLastSynced(now);
 
-      // Save to Offline Cache
       await AsyncStorage.multiSet([
         ["local_active_shows", JSON.stringify(showsRes.data || [])],
         ["local_logs", JSON.stringify(logsRes.data || [])],
         ["last_synced", now.toISOString()],
       ]);
+
+      setSyncStatus("synced");
     } catch (error) {
-      console.error("Sync failed. Staying offline.", error);
+      console.error("Sync failed:", error);
+      setSyncStatus("offline");
     } finally {
-      setIsSyncing(false);
+      isSyncingRef.current = false;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected && state.isInternetReachable !== false) {
+        syncWithCloud();
+      } else {
+        setSyncStatus("offline");
+      }
+    });
+    return () => unsubscribe();
+  }, [syncWithCloud]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        syncWithCloud();
+      }
+    });
+    return () => subscription.remove();
+  }, [syncWithCloud]);
+
+  useEffect(() => {
+    let channel: any;
+    async function setupRealtime() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel("db-changes")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "logs" },
+          () => {
+            setSyncStatus("outdated");
+            syncWithCloud();
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "active_shows" },
+          () => {
+            setSyncStatus("outdated");
+            syncWithCloud();
+          },
+        )
+        .subscribe();
+    }
+
+    setupRealtime();
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [syncWithCloud]);
+
+  const markAsOutdated = useCallback(() => setSyncStatus("outdated"), []);
 
   return (
     <SyncContext.Provider
-      value={{ isSyncing, lastSynced, activeShows, logs, syncWithCloud }}
+      value={{
+        syncStatus,
+        lastSynced,
+        activeShows,
+        logs,
+        syncWithCloud,
+        markAsOutdated,
+      }}
     >
       {children}
     </SyncContext.Provider>

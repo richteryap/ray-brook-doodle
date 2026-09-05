@@ -2,6 +2,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -26,7 +27,7 @@ export default function LogsScreen() {
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
 
-  const { logs, isSyncing, syncWithCloud } = useSync();
+  const { logs, syncStatus, syncWithCloud } = useSync();
 
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Newest First" | "Oldest First">(
@@ -86,17 +87,24 @@ export default function LogsScreen() {
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={syncWithCloud}
-          disabled={isSyncing}
+          disabled={syncStatus === "syncing"}
           className="w-8 h-8 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
         >
-          {isSyncing ? (
+          {syncStatus === "syncing" && (
             <Feather name="refresh-cw" size={14} color={iconMuted} />
-          ) : (
+          )}
+          {syncStatus === "synced" && (
             <Ionicons
               name="cloud-done-outline"
               size={16}
               color={primaryColor}
             />
+          )}
+          {syncStatus === "offline" && (
+            <Ionicons name="cloud-offline-outline" size={16} color="#ef4444" />
+          )}
+          {syncStatus === "outdated" && (
+            <Ionicons name="cloud-download-outline" size={16} color="#f59e0b" />
           )}
         </TouchableOpacity>
       </View>
@@ -104,6 +112,14 @@ export default function LogsScreen() {
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={syncStatus === "syncing"}
+            onRefresh={syncWithCloud}
+            tintColor={primaryColor}
+            colors={[primaryColor]}
+          />
+        }
       >
         <View className="pt-4 pb-4">
           <TouchableOpacity

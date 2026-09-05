@@ -2,6 +2,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -17,6 +18,7 @@ interface MediaItem {
   currentEpisode: number;
   totalEpisodes: number | null;
   lastWatched: string;
+  rawDate: string;
 }
 
 export default function CurrentlyWatchingScreen() {
@@ -26,8 +28,7 @@ export default function CurrentlyWatchingScreen() {
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
 
-  // Connect to our local offline database engine
-  const { activeShows, isSyncing, syncWithCloud } = useSync();
+  const { activeShows, syncStatus, syncWithCloud } = useSync();
 
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">(
@@ -40,7 +41,6 @@ export default function CurrentlyWatchingScreen() {
     );
   };
 
-  // Load from the local SyncContext cache instead of waiting for Supabase
   useEffect(() => {
     if (activeShows) {
       const formatted: MediaItem[] = activeShows.map((row: any) => ({
@@ -48,6 +48,7 @@ export default function CurrentlyWatchingScreen() {
         title: row.show_name,
         currentEpisode: row.latest_episode,
         totalEpisodes: row.total_episodes,
+        rawDate: row.created_at,
         lastWatched: new Date(row.updated_at).toLocaleString("en-US", {
           month: "2-digit",
           day: "2-digit",
@@ -61,8 +62,8 @@ export default function CurrentlyWatchingScreen() {
   }, [activeShows]);
 
   const sortedItems = [...items].sort((a, b) => {
-    const timeA = new Date(a.lastWatched).getTime();
-    const timeB = new Date(b.lastWatched).getTime();
+    const timeA = new Date(a.rawDate).getTime();
+    const timeB = new Date(b.rawDate).getTime();
 
     if (sortOrder === "Chronological") {
       return timeB - timeA;
@@ -85,21 +86,27 @@ export default function CurrentlyWatchingScreen() {
           </Text>
         </View>
 
-        {/* Sync Button */}
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={syncWithCloud}
-          disabled={isSyncing}
+          disabled={syncStatus === "syncing"}
           className="w-8 h-8 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
         >
-          {isSyncing ? (
+          {syncStatus === "syncing" && (
             <Feather name="refresh-cw" size={14} color={iconMuted} />
-          ) : (
+          )}
+          {syncStatus === "synced" && (
             <Ionicons
               name="cloud-done-outline"
               size={16}
               color={primaryColor}
             />
+          )}
+          {syncStatus === "offline" && (
+            <Ionicons name="cloud-offline-outline" size={16} color="#ef4444" />
+          )}
+          {syncStatus === "outdated" && (
+            <Ionicons name="cloud-download-outline" size={16} color="#f59e0b" />
           )}
         </TouchableOpacity>
       </View>
@@ -107,6 +114,14 @@ export default function CurrentlyWatchingScreen() {
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={syncStatus === "syncing"}
+            onRefresh={syncWithCloud}
+            tintColor={primaryColor}
+            colors={[primaryColor]}
+          />
+        }
       >
         <View className="pt-4 pb-4">
           <TouchableOpacity
