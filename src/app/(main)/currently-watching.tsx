@@ -14,7 +14,7 @@ interface MediaItem {
   id: string;
   title: string;
   currentEpisode: number;
-  totalEpisodes: number;
+  totalEpisodes: number | null;
   lastWatched: string;
 }
 
@@ -143,7 +143,9 @@ export default function CurrentlyWatchingScreen() {
 
         <View className="gap-y-1">
           {sortedItems.map((item) => {
-            const isCompleted = item.currentEpisode === item.totalEpisodes;
+            const isCompleted = item.totalEpisodes
+              ? item.currentEpisode >= item.totalEpisodes
+              : false;
             return (
               <View
                 key={item.id}
@@ -177,13 +179,13 @@ export default function CurrentlyWatchingScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View className="flex-row border-b border-slate-200">
-                  <View className="flex-1 py-1 px-3 border-r border-slate-200 justify-center bg-slate-50/50">
-                    <Text className="text-sm font-bold text-slate-700">
-                      Episode {item.currentEpisode} out of {item.totalEpisodes}{" "}
-                      Total Episodes
-                    </Text>
-                  </View>
+                <View className="flex-1 py-1 px-3 border-r border-slate-200 justify-center bg-slate-50/50">
+                  <Text className="text-sm font-bold text-slate-700">
+                    Episode {item.currentEpisode}
+                    {item.totalEpisodes
+                      ? ` out of ${item.totalEpisodes} Total Episodes`
+                      : " (Ongoing)"}
+                  </Text>
                 </View>
 
                 <View className="flex-row">
