@@ -30,8 +30,8 @@ javascript:(async function(){
         console.log("AniList fetch failed. Proceeding with null total.");
     }
 
-    const SUPABASE_URL = 'https://YOUR_PROJECT_REF.supabase.co/rest/v1/rpc/log_media_stream';
-    const ANON_KEY = 'YOUR_PUBLIC_ANON_KEY';
+    const SUPABASE_URL = 'https://jokibcrltlzxhqireiiu.supabase.co/rest/v1/rpc/log_media_stream';
+    const ANON_KEY = 'sb_publishable_ZLflwJPzbGJrv_XqE24JhQ_2iYB09mh';
     const API_KEY = 'YOUR_SECRET_PROFILE_API_KEY'; 
 
     fetch(SUPABASE_URL, {

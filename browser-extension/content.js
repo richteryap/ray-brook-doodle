@@ -1,8 +1,7 @@
 const TARGET_CLASS = '.linetitle3'; 
 
-const SUPABASE_URL = 'https://YOUR_PROJECT_REF.supabase.co/rest/v1/rpc/log_media_stream';
-const ANON_KEY = 'YOUR_PUBLIC_ANON_KEY';
-const API_KEY = 'YOUR_SECRET_PROFILE_API_KEY'; 
+const SUPABASE_URL = 'https://jokibcrltlzxhqireiiu.supabase.co/rest/v1/rpc/log_media_stream';
+const ANON_KEY = 'sb_publishable_ZLflwJPzbGJrv_XqE24JhQ_2iYB09mh';
 
 console.log("LogStream Serverless Ext. loaded! Waiting for manual trigger.");
 
@@ -10,6 +9,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "log_episode") {
         
         (async () => {
+            const storageData = await chrome.storage.local.get(['userApiKey']);
+            const API_KEY = storageData.userApiKey;
+
+            if (!API_KEY) {
+                console.error("API Key not found in storage.");
+                sendResponse({ status: "error", message: "Please set your API Key in the extension popup." });
+                return;
+            }
+
             let htmlElement = document.querySelector(TARGET_CLASS);
             
             if (!htmlElement) {
@@ -27,6 +35,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 showName = match[1].trim();
                 episode = parseInt(match[2], 10);
             }
+
             console.log("Title found:", showName, "| Ep:", episode);
 
             let totalEpisodes = null;

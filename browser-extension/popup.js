@@ -1,7 +1,28 @@
+chrome.storage.local.get(['userApiKey'], (result) => {
+    if (result.userApiKey) {
+        document.getElementById('apiKeyInput').value = result.userApiKey;
+    }
+});
+
+document.getElementById('saveKeyBtn').addEventListener('click', () => {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    const statusDiv = document.getElementById('status');
+    
+    if (!key) {
+        statusDiv.innerText = "Please enter a key.";
+        statusDiv.style.color = "#f44336";
+        return;
+    }
+
+    chrome.storage.local.set({ userApiKey: key }, () => {
+        statusDiv.innerText = "API Key Saved!";
+        statusDiv.style.color = "#4caf50";
+    });
+});
+
 document.getElementById('logBtn').addEventListener('click', () => {
     const statusDiv = document.getElementById('status');
     statusDiv.innerText = "Beaming to server...";
-
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, {action: "log_episode"}, (response) => {
             
@@ -10,7 +31,6 @@ document.getElementById('logBtn').addEventListener('click', () => {
                 showNotification("Connection Error", "Please refresh the anime page and try again.");
                 return;
             }
-
             if (response && response.status === "success") {
                 statusDiv.innerText = "Success!";
                 statusDiv.style.color = "#4caf50";

@@ -29,12 +29,26 @@
             width: 100%;
             transition: background-color 0.2s;
         }
-        .btn:hover {
-            background-color: #357abd;
+        .btn:hover { background-color: #357abd; }
+        .btn:active { background-color: #285a8f; }
+        
+        .input-field {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #4a90e2;
+            background-color: #2a2d36;
+            color: white;
+            outline: none;
         }
-        .btn:active {
-            background-color: #285a8f;
+        .btn-save {
+            background-color: #2e7d32;
+            margin-bottom: 15px;
         }
+        .btn-save:hover { background-color: #1b5e20; }
+        
         #status {
             margin-top: 15px;
             font-size: 12px;
@@ -44,9 +58,12 @@
 </head>
 <body>
     <div class="title">Ray Brook Logs</div>
+    
+    <input type="password" id="apiKeyInput" class="input-field" placeholder="Enter Secret API Key" />
+    <button id="saveKeyBtn" class="btn btn-save">Save Key</button>
+    
     <button id="logBtn" class="btn">Log Episode</button>
     <div id="status">Waiting...</div>
-
     <script src="popup.js"></script>
 </body>
 </html>
