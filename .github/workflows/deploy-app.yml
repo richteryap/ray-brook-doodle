@@ -22,25 +22,26 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: 22.x
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Build Android APK
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive
-
-      - name: Download APK from Expo
+      - name: Build and Download APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          eas build:download --platform android --non-interactive
-          mv *.apk ray-brook-app.apk
+          echo "Starting EAS cloud build..."
+          eas build --platform android --profile preview --non-interactive --json > build-output.json
+
+          APK_URL=$(jq -r 'if type=="array" then .[0].artifacts.buildUrl else .artifacts.buildUrl end' build-output.json)
+
+          echo "Build finished! Downloading APK from: $APK_URL"
+
+          curl -L -o ray-brook-app.apk "$APK_URL"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
