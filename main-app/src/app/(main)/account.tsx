@@ -1,11 +1,15 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Clipboard from "expo-clipboard";
+import * as Crypto from "expo-crypto";
 import { File, Paths } from "expo-file-system";
-import { useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
+import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -23,13 +27,17 @@ type EditType = "username" | "email" | "password" | null;
 
 export default function AccountScreen() {
   const router = useRouter();
+
   const { colorScheme, setColorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
+
   const { activeShows, logs } = useSync();
+
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("Loading...");
+  const [apiKey, setApiKey] = useState("Loading...");
   const [themePref, setThemePref] = useState<"system" | "light" | "dark">(
     "system",
   );
@@ -39,8 +47,11 @@ export default function AccountScreen() {
   const [editValue, setEditValue] = useState("");
   const [confirmEditValue, setConfirmEditValue] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
   const [isUpdating, setIsUpdating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isKeyVisible, setIsKeyVisible] = useState(false);
 
   const [popupVisible, setPopupVisible] = useState(false);
   const [popupConfig, setPopupConfig] = useState({
@@ -67,9 +78,11 @@ export default function AccountScreen() {
     async function loadUserData() {
       const cachedUsername = await AsyncStorage.getItem("cached_username");
       const cachedEmail = await AsyncStorage.getItem("cached_email");
+      const cachedApiKey = await AsyncStorage.getItem("cached_api_key");
 
       if (cachedUsername) setUsername(cachedUsername);
       if (cachedEmail) setEmail(cachedEmail);
+      if (cachedApiKey) setApiKey(cachedApiKey);
 
       const {
         data: { user },
@@ -83,7 +96,7 @@ export default function AccountScreen() {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("username")
+          .select("username, api_key")
           .eq("id", user.id)
           .single();
 
@@ -91,6 +104,12 @@ export default function AccountScreen() {
           if (data.username !== cachedUsername) {
             setUsername(data.username);
             await AsyncStorage.setItem("cached_username", data.username);
+          }
+          if (data.api_key && data.api_key !== cachedApiKey) {
+            setApiKey(data.api_key);
+            await AsyncStorage.setItem("cached_api_key", data.api_key);
+          } else if (!data.api_key && !cachedApiKey) {
+            setApiKey("No key found");
           }
         } else if (!cachedUsername) {
           setUsername("Unknown User");
@@ -128,8 +147,11 @@ export default function AccountScreen() {
     if (error) {
       showPopup("Error Signing Out", error.message);
     } else {
-      await AsyncStorage.removeItem("cached_username");
-      await AsyncStorage.removeItem("cached_email");
+      await AsyncStorage.multiRemove([
+        "cached_username",
+        "cached_email",
+        "cached_api_key"
+      ]);
       router.replace("/login");
     }
   };
@@ -233,7 +255,6 @@ export default function AccountScreen() {
     try {
       setIsExporting(true);
 
-      // We read directly from the SyncContext offline cache so it works without an internet connection
       let csvContent =
         "Record Type,Show Name,Current Episode,Total Episodes,Timestamp\n";
 
@@ -253,7 +274,6 @@ export default function AccountScreen() {
 
       const fileName = `Watchlist_Export_${new Date().toISOString().split("T")[0]}.csv`;
 
-      // Handle Web Downloads
       if (Platform.OS === "web") {
         const blob = new Blob([csvContent], {
           type: "text/csv;charset=utf-8;",
@@ -272,11 +292,9 @@ export default function AccountScreen() {
       }
 
       const file = new File(Paths.document, fileName);
-
       if (!file.exists) {
         file.create();
       }
-
       file.write(csvContent);
 
       if (await Sharing.isAvailableAsync()) {
@@ -298,6 +316,57 @@ export default function AccountScreen() {
         "Export Failed",
         error.message || "An unexpected error occurred.",
       );
+    }
+  };
+
+  const copyToClipboard = async () => {
+    if (apiKey && apiKey !== "Loading..." && apiKey !== "No key found") {
+      await Clipboard.setStringAsync(apiKey);
+      showPopup("Copied to Clipboard", "Your API key has been copied.");
+    }
+  };
+
+  const handleRegenerateApiKey = () => {
+    Alert.alert(
+      "Regenerate API Key",
+      "Are you sure? Your browser extension and bookmarklet will stop working until you update them with the new key.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Regenerate", style: "destructive", onPress: regenerateKey },
+      ]
+    );
+  };
+
+  const regenerateKey = async () => {
+    setIsRegenerating(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) throw new Error("Not authenticated");
+
+      const newKey = Crypto.randomUUID();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ api_key: newKey })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      setApiKey(newKey);
+      await AsyncStorage.setItem("cached_api_key", newKey);
+      showPopup(
+        "Key Regenerated",
+        "Your new API key has been generated successfully."
+      );
+    } catch (error: any) {
+      showPopup(
+        "Update Failed",
+        error.message || "Could not regenerate API key."
+      );
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -442,6 +511,68 @@ export default function AccountScreen() {
             </TouchableOpacity>
           </View>
 
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-sm border border-slate-200 dark:border-slate-700">
+            <Text className="px-4 py-3 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Developer Settings
+            </Text>
+
+            <View className="px-4 py-3">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center">
+                  <Feather name="key" size={18} color={iconMuted} />
+                  <Text className="ml-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Extension API Key
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setIsKeyVisible(!isKeyVisible)}
+                >
+                  <Text className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                    {isKeyVisible ? "Hide" : "Reveal"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View className="flex-row items-center justify-between bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-100 dark:border-slate-700">
+                <Text
+                  className="flex-1 text-sm text-slate-600 dark:text-slate-300 font-mono"
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                >
+                  {isKeyVisible ? apiKey : "••••••••••••••••••••••••••••••••"}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={copyToClipboard}
+                  className="ml-3"
+                >
+                  <Feather name="copy" size={16} color={iconMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={handleRegenerateApiKey}
+                disabled={isRegenerating}
+                className={`mt-4 py-3 rounded-xl items-center border flex-row justify-center ${
+                  isRegenerating
+                    ? "bg-red-50/50 dark:bg-red-500/5 border-red-100/50 dark:border-red-500/10"
+                    : "bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20"
+                }`}
+              >
+                {isRegenerating ? (
+                  <ActivityIndicator size="small" color="#ef4444" />
+                ) : (
+                  <Feather name="refresh-cw" size={14} color="#ef4444" />
+                )}
+                <Text className="ml-2 text-xs font-bold text-red-500 dark:text-red-400">
+                  {isRegenerating ? "Regenerating..." : "Regenerate Key"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={handleLogout}
@@ -579,7 +710,10 @@ export default function AccountScreen() {
                     ? "alert-circle"
                     : popupConfig.title.includes("Export")
                       ? "download"
-                      : "mail"
+                      : popupConfig.title.includes("Copied") ||
+                          popupConfig.title.includes("Regenerated")
+                        ? "check-circle"
+                        : "mail"
                 }
                 size={24}
                 color={primaryColor}
