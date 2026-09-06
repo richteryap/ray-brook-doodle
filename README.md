@@ -44,11 +44,11 @@ ray-brook/
 ## 🛠 Local Development Setup
 
 ### Mobile App
-\`\`\`bash
+```bash
 cd main-app
 npm install
 npx expo start
-\`\`\`
+```
 
 ### Chrome Extension
 1. Open Google Chrome and navigate to `chrome://extensions/`.
