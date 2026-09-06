@@ -15,14 +15,14 @@ Grab the latest compiled builds directly from the **[Releases](../../releases)**
 
 ## 🏗 Repository Structure
 
-\`\`\`text
+```text
 ray-brook/
 ├── .github/workflows/       # CI/CD pipelines (EAS build & GitHub Release packaging)
 ├── browser-extension/       # Manifest V3 Chrome extension for browser-based logging
 ├── main-app/                # React Native (Expo) cross-platform mobile application
 ├── bookmarklet.txt          # Quick single-click browser bookmarklet logger
 └── README.md                # Project documentation and setup guide
-\`\`\`
+```
 
 ---
 
