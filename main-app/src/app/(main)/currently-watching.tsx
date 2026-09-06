@@ -48,7 +48,7 @@ export default function CurrentlyWatchingScreen() {
         title: row.show_name,
         currentEpisode: row.latest_episode,
         totalEpisodes: row.total_episodes,
-        rawDate: row.created_at,
+        rawDate: row.updated_at,
         lastWatched: new Date(row.updated_at).toLocaleString("en-US", {
           month: "2-digit",
           day: "2-digit",
