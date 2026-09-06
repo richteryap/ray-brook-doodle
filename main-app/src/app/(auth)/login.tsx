@@ -43,46 +43,46 @@ export default function LoginScreen() {
   const isRecoveryRef = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.hash) {
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
+  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.hash) {
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
 
-      if (params.get("type") === "recovery") {
-        isRecoveryRef.current = true;
-        setIsResettingPassword(true);
+    if (params.get("type") === "recovery") {
+      isRecoveryRef.current = true;
+      setIsResettingPassword(true);
 
-        const access_token = params.get("access_token");
-        const refresh_token = params.get("refresh_token");
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
 
-        if (access_token && refresh_token) {
-          supabase.auth.setSession({
-            access_token,
-            refresh_token,
-          });
-        }
+      if (access_token && refresh_token) {
+        supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
       }
     }
+  }
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "PASSWORD_RECOVERY") {
-          isRecoveryRef.current = true;
-          setIsResettingPassword(true);
-          setAuthError("");
-        } else if (event === "SIGNED_IN") {
-          setTimeout(() => {
-            if (!isRecoveryRef.current && session) {
-              router.replace("/dashboard");
-            }
-          }, 500);
-        }
-      },
-    );
+  const { data: authListener } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        isRecoveryRef.current = true;
+        setIsResettingPassword(true);
+        setAuthError("");
+      } else if (event === "SIGNED_IN") {
+        setTimeout(() => {
+          if (!isRecoveryRef.current && session) {
+            router.replace("/dashboard");
+          }
+        }, 500);
+      }
+    },
+  );
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+  return () => {
+    authListener.subscription.unsubscribe();
+  };
+}, []);
 
   const showPopup = (
     title: string,
