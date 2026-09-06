@@ -39,7 +39,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          eas build:download --platform android --profile preview
+          eas build:download --platform android --latest
           mv *.apk ray-brook-app.apk
 
       - name: Create GitHub Release
