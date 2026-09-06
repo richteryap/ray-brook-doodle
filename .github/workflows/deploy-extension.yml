@@ -17,7 +17,7 @@ jobs:
 
       - name: Zip Extension
         run: |
-          cd extension # Adjust to your exact extension folder name
+          cd browser-extension
           zip -r ../ray-brook-extension.zip . -x "*.git*"
 
       - name: Create GitHub Release
