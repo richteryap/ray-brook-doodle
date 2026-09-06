@@ -33,11 +33,14 @@ export default function LogsScreen() {
   const [sortOrder, setSortOrder] = useState<"Newest First" | "Oldest First">(
     "Newest First",
   );
+  
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const toggleSort = () => {
     setSortOrder((prev) =>
       prev === "Newest First" ? "Oldest First" : "Newest First",
     );
+    setVisibleCount(20);
   };
 
   useEffect(() => {
@@ -69,6 +72,8 @@ export default function LogsScreen() {
       return timeA - timeB;
     }
   });
+
+  const visibleItems = sortedItems.slice(0, visibleCount);
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
@@ -156,7 +161,7 @@ export default function LogsScreen() {
         </View>
 
         <View className="gap-y-1">
-          {sortedItems.map((item) => (
+          {visibleItems.map((item) => (
             <View
               key={item.id}
               className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
@@ -199,6 +204,27 @@ export default function LogsScreen() {
             </View>
           ))}
         </View>
+
+        {sortedItems.length > 0 && (
+          <View className="mt-6 mb-2 items-center">
+            <Text className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+              Showing {visibleItems.length} of {sortedItems.length} logs
+            </Text>
+            
+            {visibleCount < sortedItems.length && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setVisibleCount((prev) => prev + 20)}
+                className="px-6 py-3 rounded-full bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 flex-row items-center"
+              >
+                <Feather name="chevron-down" size={16} color={primaryColor} />
+                <Text className="ml-2 text-sm font-bold text-blue-600 dark:text-blue-400">
+                  Load More
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
