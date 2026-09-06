@@ -1,12 +1,29 @@
+const keyInputContainer = document.getElementById('keyInputContainer');
+const keySavedContainer = document.getElementById('keySavedContainer');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const statusDiv = document.getElementById('status');
+
+function showInputState() {
+    keyInputContainer.classList.remove('hidden');
+    keySavedContainer.classList.add('hidden');
+}
+
+function showSavedState() {
+    keyInputContainer.classList.add('hidden');
+    keySavedContainer.classList.remove('hidden');
+}
+
 chrome.storage.local.get(['userApiKey'], (result) => {
     if (result.userApiKey) {
-        document.getElementById('apiKeyInput').value = result.userApiKey;
+        apiKeyInput.value = result.userApiKey;
+        showSavedState();
+    } else {
+        showInputState();
     }
 });
 
 document.getElementById('saveKeyBtn').addEventListener('click', () => {
-    const key = document.getElementById('apiKeyInput').value.trim();
-    const statusDiv = document.getElementById('status');
+    const key = apiKeyInput.value.trim();
     
     if (!key) {
         statusDiv.innerText = "Please enter a key.";
@@ -17,11 +34,17 @@ document.getElementById('saveKeyBtn').addEventListener('click', () => {
     chrome.storage.local.set({ userApiKey: key }, () => {
         statusDiv.innerText = "API Key Saved!";
         statusDiv.style.color = "#4caf50";
+        showSavedState();
     });
 });
 
+document.getElementById('changeKeyBtn').addEventListener('click', () => {
+    showInputState();
+    statusDiv.innerText = "Waiting...";
+    statusDiv.style.color = "#a0a0a0";
+});
+
 document.getElementById('logBtn').addEventListener('click', () => {
-    const statusDiv = document.getElementById('status');
     statusDiv.innerText = "Beaming to server...";
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, {action: "log_episode"}, (response) => {

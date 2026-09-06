@@ -43,24 +43,34 @@
             color: white;
             outline: none;
         }
-        .btn-save {
-            background-color: #2e7d32;
-            margin-bottom: 15px;
-        }
+        .btn-save { background-color: #2e7d32; }
         .btn-save:hover { background-color: #1b5e20; }
+        .btn-change { background-color: #64748b; padding: 8px 15px; font-size: 13px; }
+        .btn-change:hover { background-color: #475569; }
         
         #status {
             margin-top: 15px;
             font-size: 12px;
             color: #a0a0a0;
         }
+        
+        .hidden { display: none; }
+        .mb-15 { margin-bottom: 15px; }
+        .text-success { color: #4caf50; font-size: 14px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <div class="title">Ray Brook Logs</div>
     
-    <input type="password" id="apiKeyInput" class="input-field" placeholder="Enter Secret API Key" />
-    <button id="saveKeyBtn" class="btn btn-save">Save Key</button>
+    <div id="keyInputContainer" class="mb-15">
+        <input type="password" id="apiKeyInput" class="input-field" placeholder="Enter Secret API Key" />
+        <button id="saveKeyBtn" class="btn btn-save">Save Key</button>
+    </div>
+
+    <div id="keySavedContainer" class="mb-15 hidden">
+        <div class="text-success">✓ API Key is saved</div>
+        <button id="changeKeyBtn" class="btn btn-change">Change Key</button>
+    </div>
     
     <button id="logBtn" class="btn">Log Episode</button>
     <div id="status">Waiting...</div>
