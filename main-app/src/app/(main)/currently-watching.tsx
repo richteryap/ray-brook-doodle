@@ -199,7 +199,7 @@ export default function CurrentlyWatchingScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View className="flex-1 py-1 px-3 border-r border-slate-200 dark:border-slate-700 justify-center bg-slate-50/50 dark:bg-slate-800">
+                <View className="py-1 px-3 border-r border-slate-200 dark:border-slate-700 justify-center bg-slate-50/50 dark:bg-slate-800">
                   <Text className="text-sm font-bold text-slate-700 dark:text-slate-300">
                     Episode {item.currentEpisode}
                     {item.totalEpisodes
