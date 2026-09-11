@@ -29,14 +29,14 @@ export default function CurrentlyWatchingScreen() {
   const isDark = colorScheme === "dark";
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
-
   const { activeShows, syncStatus, syncWithCloud, dropActiveShows } = useSync();
-
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">("Chronological");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+
+  const isLoadingEmpty = syncStatus === "syncing" && items.length === 0;
 
   const toggleSort = () => {
     setSortOrder((prev) => (prev === "Chronological" ? "Alphabetical" : "Chronological"));
@@ -207,66 +207,95 @@ export default function CurrentlyWatchingScreen() {
         )}
 
         <View className={isSelectionMode ? "gap-y-1 pt-2" : "gap-y-1"}>
-          {sortedItems.map((item) => {
-            const isCompleted = item.totalEpisodes ? item.currentEpisode >= item.totalEpisodes : false;
-            const isSelected = selectedIds.has(item.id);
-
-            return (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={0.8}
-                onLongPress={() => handleLongPress(item.id)}
-                onPress={() => handlePress(item.id)}
-                className={`relative bg-white dark:bg-slate-800 border ${
-                  isSelected ? "border-blue-500 dark:border-blue-400 border-2" : "border-slate-200 dark:border-slate-700"
-                } shadow-sm overflow-hidden flex-row`}
-              >
-                {isSelectionMode && (
-                  <View className="w-12 items-center justify-center bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
-                    <View className={`w-5 h-5 rounded border ${isSelected ? "bg-blue-500 border-blue-500" : "border-slate-400"} items-center justify-center`}>
-                      {isSelected && <Feather name="check" size={14} color="white" />}
-                    </View>
-                  </View>
-                )}
-
-                <View className="flex-1">
-                  <View className={`absolute top-0 left-0 px-4 py-0 rounded-br-xl z-10 ${isCompleted ? "bg-emerald-500" : "bg-cyan-500"}`}>
-                    <Text className="text-white text-[10px] font-bold uppercase tracking-wider">
-                      {isCompleted ? "Completed" : "Watching"}
-                    </Text>
-                  </View>
-
-                  <View className="flex-row items-center justify-between pt-4 pb-1 px-3 border-b border-slate-200 dark:border-slate-700 mt-2">
-                    <View className="flex-1 pr-4">
-                      <Text className="text-sm font-bold text-slate-900 dark:text-white" numberOfLines={2}>
-                        {item.title}
-                      </Text>
-                    </View>
-                    {!isSelectionMode && (
-                      <View className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center">
-                        <Feather name="arrow-up-right" size={16} color={primaryColor} />
-                      </View>
-                    )}
-                  </View>
-
-                  <View className="py-1 px-3 border-r border-slate-200 dark:border-slate-700 justify-center bg-slate-50/50 dark:bg-slate-800">
-                    <Text className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                      Episode {item.currentEpisode}
-                      {item.totalEpisodes ? ` out of ${item.totalEpisodes} Total Episodes` : " (Ongoing)"}
-                    </Text>
-                  </View>
-
-                  <View className="flex-row">
-                    <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50 dark:bg-slate-800">
-                      <Text className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                        Last Watched: {item.lastWatched}
-                      </Text>
-                    </View>
-                  </View>
+          {isLoadingEmpty ? (
+            [1, 2, 3, 4].map((key) => (
+              <View key={key} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden h-[104px] opacity-60">
+                <View className="flex-row items-center justify-between pt-4 pb-1 px-3 border-b border-slate-100 dark:border-slate-700/50 mt-2">
+                  <View className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                  <View className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700" />
                 </View>
-              </TouchableOpacity>
-            );
-          })}
+                <View className="py-2 px-3 border-r border-slate-100 dark:border-slate-700/50 bg-slate-50/30 dark:bg-slate-800">
+                  <View className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2 mb-2" />
+                  <View className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+                </View>
+              </View>
+            ))
+          ) : sortedItems.length === 0 ? (
+            <View className="items-center justify-center pt-16 pb-8 px-4">
+              <View className="w-20 h-20 rounded-full bg-slate-200/50 dark:bg-slate-800 items-center justify-center mb-4 border border-slate-200 dark:border-slate-700">
+                <Feather name={searchQuery ? "search" : "tv"} size={32} color={iconMuted} />
+              </View>
+              <Text className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2 text-center">
+                {searchQuery ? "No results found" : "No Active Shows"}
+              </Text>
+              <Text className="text-sm text-slate-500 dark:text-slate-400 text-center">
+                {searchQuery
+                  ? `We couldn't find any shows matching "${searchQuery}".`
+                  : "Shows you start tracking from the browser extension will appear here."}
+              </Text>
+            </View>
+          ) : (
+            sortedItems.map((item) => {
+              const isCompleted = item.totalEpisodes ? item.currentEpisode >= item.totalEpisodes : false;
+              const isSelected = selectedIds.has(item.id);
+
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={0.8}
+                  onLongPress={() => handleLongPress(item.id)}
+                  onPress={() => handlePress(item.id)}
+                  className={`relative bg-white dark:bg-slate-800 border ${
+                    isSelected ? "border-blue-500 dark:border-blue-400 border-2" : "border-slate-200 dark:border-slate-700"
+                  } shadow-sm overflow-hidden flex-row`}
+                >
+                  {isSelectionMode && (
+                    <View className="w-12 items-center justify-center bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
+                      <View className={`w-5 h-5 rounded border ${isSelected ? "bg-blue-500 border-blue-500" : "border-slate-400"} items-center justify-center`}>
+                        {isSelected && <Feather name="check" size={14} color="white" />}
+                      </View>
+                    </View>
+                  )}
+
+                  <View className="flex-1">
+                    <View className={`absolute top-0 left-0 px-4 py-0 rounded-br-xl z-10 ${isCompleted ? "bg-emerald-500" : "bg-cyan-500"}`}>
+                      <Text className="text-white text-[10px] font-bold uppercase tracking-wider">
+                        {isCompleted ? "Completed" : "Watching"}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between pt-4 pb-1 px-3 border-b border-slate-200 dark:border-slate-700 mt-2">
+                      <View className="flex-1 pr-4">
+                        <Text className="text-sm font-bold text-slate-900 dark:text-white" numberOfLines={2}>
+                          {item.title}
+                        </Text>
+                      </View>
+                      {!isSelectionMode && (
+                        <View className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center">
+                          <Feather name="arrow-up-right" size={16} color={primaryColor} />
+                        </View>
+                      )}
+                    </View>
+
+                    <View className="py-1 px-3 border-r border-slate-200 dark:border-slate-700 justify-center bg-slate-50/50 dark:bg-slate-800">
+                      <Text className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                        Episode {item.currentEpisode}
+                        {item.totalEpisodes ? ` out of ${item.totalEpisodes} Total Episodes` : " (Ongoing)"}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row">
+                      <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50 dark:bg-slate-800">
+                        <Text className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                          Last Watched: {item.lastWatched}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -27,37 +27,26 @@ type EditType = "username" | "email" | "password" | null;
 
 export default function AccountScreen() {
   const router = useRouter();
-
   const { colorScheme, setColorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
-
-  const { activeShows, logs } = useSync();
-
+  const { activeShows, logs, clearData } = useSync();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("Loading...");
   const [apiKey, setApiKey] = useState("Loading...");
-  const [themePref, setThemePref] = useState<"system" | "light" | "dark">(
-    "system",
-  );
-
+  const [themePref, setThemePref] = useState<"system" | "light" | "dark">( "system", );
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editType, setEditType] = useState<EditType>(null);
   const [editValue, setEditValue] = useState("");
   const [confirmEditValue, setConfirmEditValue] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
   const [isUpdating, setIsUpdating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isKeyVisible, setIsKeyVisible] = useState(false);
-
   const [popupVisible, setPopupVisible] = useState(false);
-  const [popupConfig, setPopupConfig] = useState({
-    title: "",
-    description: "",
-  });
+  const [popupConfig, setPopupConfig] = useState({ title: "", description: "", });
   const [onPopupClose, setOnPopupClose] = useState<(() => void) | null>(null);
 
   useEffect(() => {
@@ -147,6 +136,8 @@ export default function AccountScreen() {
     if (error) {
       showPopup("Error Signing Out", error.message);
     } else {
+      if (clearData) await clearData();
+      
       await AsyncStorage.multiRemove([
         "cached_username",
         "cached_email",

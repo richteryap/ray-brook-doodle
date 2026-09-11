@@ -21,6 +21,7 @@ interface SyncContextType {
   syncWithCloud: () => Promise<void>;
   markAsOutdated: () => void;
   dropActiveShows: (ids: string[]) => Promise<void>;
+  clearData: () => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -95,6 +96,19 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       isSyncingRef.current = false;
     }
   }, []);
+
+  const clearData = async () => {
+    setActiveShows([]);
+    setLogs([]);
+    setLastSynced(null);
+    setSyncStatus("offline");
+    
+    await AsyncStorage.multiRemove([
+      "local_active_shows",
+      "local_logs",
+      "last_synced",
+    ]);
+  };
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -178,6 +192,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         syncWithCloud,
         markAsOutdated,
         dropActiveShows,
+        clearData,
       }}
     >
       {children}

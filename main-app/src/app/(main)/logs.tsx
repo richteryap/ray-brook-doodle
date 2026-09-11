@@ -27,9 +27,7 @@ export default function LogsScreen() {
   const isDark = colorScheme === "dark";
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
-
   const { logs, syncStatus, syncWithCloud } = useSync();
-
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Newest First" | "Oldest First">(
     "Newest First",
@@ -37,6 +35,8 @@ export default function LogsScreen() {
   
   const [visibleCount, setVisibleCount] = useState(20);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const isLoadingEmpty = syncStatus === "syncing" && items.length === 0;
 
   useEffect(() => {
     setVisibleCount(20);
@@ -190,48 +190,76 @@ export default function LogsScreen() {
         </View>
 
         <View className="gap-y-1">
-          {visibleItems.map((item) => (
-            <View
-              key={item.id}
-              className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
-            >
-              <View className="flex-row items-center justify-between py-2 px-3 border-b border-slate-200 dark:border-slate-700">
-                <View className="flex-1 pr-4">
-                  <Text
-                    className="text-sm font-bold text-slate-900 dark:text-white"
-                    numberOfLines={2}
-                  >
-                    {item.title}
-                  </Text>
+          {isLoadingEmpty ? (
+            [1, 2, 3, 4, 5, 6].map((key) => (
+              <View key={key} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden opacity-60">
+                <View className="flex-row items-center justify-between py-3 px-3 border-b border-slate-100 dark:border-slate-700/50">
+                  <View className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
+                  <View className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700" />
                 </View>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => router.push(`/title/${item.id}`)}
-                  className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center"
-                >
-                  <Feather
-                    name="arrow-up-right"
-                    size={16}
-                    color={primaryColor}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View className="flex-row">
-                <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50 dark:bg-slate-800">
-                  <Text className="text-sm text-slate-500 dark:text-slate-400">
-                    <Text className="font-bold text-blue-600 dark:text-blue-400">
-                      Episode {item.currentEpisode}
-                    </Text>
-                    {" @ "}
-                    <Text className="text-md font-bold text-slate-800 dark:text-slate-300">
-                      {item.lastWatched}
-                    </Text>
-                  </Text>
+                <View className="py-3 px-3 bg-slate-50/30 dark:bg-slate-800">
+                  <View className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
                 </View>
               </View>
+            ))
+          ) : sortedItems.length === 0 ? (
+            <View className="items-center justify-center pt-16 pb-8 px-4">
+              <View className="w-20 h-20 rounded-full bg-slate-200/50 dark:bg-slate-800 items-center justify-center mb-4 border border-slate-200 dark:border-slate-700">
+                <Feather name={searchQuery ? "search" : "clipboard"} size={32} color={iconMuted} />
+              </View>
+              <Text className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2 text-center">
+                {searchQuery ? "No results found" : "No Watch Logs"}
+              </Text>
+              <Text className="text-sm text-slate-500 dark:text-slate-400 text-center">
+                {searchQuery
+                  ? `We couldn't find any logs matching "${searchQuery}".`
+                  : "Your chronological history of watched episodes will appear here."}
+              </Text>
             </View>
-          ))}
+          ) : (
+            visibleItems.map((item) => (
+              <View
+                key={item.id}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
+              >
+                <View className="flex-row items-center justify-between py-2 px-3 border-b border-slate-200 dark:border-slate-700">
+                  <View className="flex-1 pr-4">
+                    <Text
+                      className="text-sm font-bold text-slate-900 dark:text-white"
+                      numberOfLines={2}
+                    >
+                      {item.title}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => router.push(`/title/${item.id}`)}
+                    className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center"
+                  >
+                    <Feather
+                      name="arrow-up-right"
+                      size={16}
+                      color={primaryColor}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View className="flex-row">
+                  <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50 dark:bg-slate-800">
+                    <Text className="text-sm text-slate-500 dark:text-slate-400">
+                      <Text className="font-bold text-blue-600 dark:text-blue-400">
+                        Episode {item.currentEpisode}
+                      </Text>
+                      {" @ "}
+                      <Text className="text-md font-bold text-slate-800 dark:text-slate-300">
+                        {item.lastWatched}
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
         </View>
 
         {sortedItems.length > 0 && (
