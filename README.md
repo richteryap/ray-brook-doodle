@@ -29,11 +29,14 @@ ray-brook/
 ## 🚀 Components
 
 ### 1. Mobile Dashboard (`/main-app`)
+
 - Built with **React Native**, **Expo Router**, and **NativeWind (Tailwind CSS)**.
 - Real-time synchronization and storage powered by **Supabase**.
 - Tracks active watching status, episode counts, and chronological viewing history.
+- Features title search filtering and bulk-drop management for active series.
 
 ### 2. Browser Extension (`/browser-extension`)
+
 - **Manifest V3** Chrome extension.
 - Automatically extracts show titles and episode numbers from supported streaming pages.
 - Integrates with AniList GraphQL to resolve metadata and total episode counts.
@@ -44,6 +47,7 @@ ray-brook/
 ## 🛠 Local Development Setup
 
 ### Mobile App
+
 ```bash
 cd main-app
 npm install
@@ -51,6 +55,7 @@ npx expo start
 ```
 
 ### Chrome Extension
+
 1. Open Google Chrome and navigate to `chrome://extensions/`.
 2. Enable **Developer mode** (top right).
 3. Click **Load unpacked** and select the `browser-extension` folder.
@@ -61,5 +66,10 @@ npx expo start
 ## 🔄 Automated CI/CD Workflows
 
 Builds and distribution packages are managed automatically via GitHub Actions:
+
 - **Pushing tag `app-v*`** triggers an Expo EAS cloud build, downloads the compiled APK, and creates a GitHub Release.
 - **Pushing tag `ext-v*`** bundles the extension into a `.zip` file and attaches it to a GitHub Release.
+
+## ©️ License
+
+Copyright © 2026 Richter Anthony Yap. All Rights Reserved.

@@ -584,6 +584,16 @@ export default function AccountScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <View className="mt-5 items-center">
+          <Text className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+            © 2026 Ray Brook by Richter Anthony Yap
+          </Text>
+          <Text className="text-[10px] text-slate-400/80 dark:text-slate-500/80 mt-1 uppercase tracking-wider">
+            All Rights Reserved
+          </Text>
+        </View>
+
       </ScrollView>
 
       <Modal
