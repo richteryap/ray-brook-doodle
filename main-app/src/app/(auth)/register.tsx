@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
+import * as Linking from 'expo-linking';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -61,6 +62,8 @@ export default function RegisterScreen() {
 
     setLoading(true);
 
+    const redirectUrl = Linking.createURL('/');
+
     const metadata =
       username.trim() !== "" ? { username: username.trim() } : {};
 
@@ -69,6 +72,7 @@ export default function RegisterScreen() {
       password,
       options: {
         data: metadata,
+        emailRedirectTo: redirectUrl,
       },
     });
 

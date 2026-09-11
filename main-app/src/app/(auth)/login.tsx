@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
+import * as Linking from 'expo-linking';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -139,8 +140,10 @@ export default function LoginScreen() {
 
     setLoading(true);
 
+    const redirectUrl = Linking.createURL('/login');
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:8081/login",
+      redirectTo: redirectUrl,
     });
 
     setLoading(false);
