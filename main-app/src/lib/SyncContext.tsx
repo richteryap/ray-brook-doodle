@@ -20,6 +20,7 @@ interface SyncContextType {
   logs: any[];
   syncWithCloud: () => Promise<void>;
   markAsOutdated: () => void;
+  dropActiveShows: (ids: string[]) => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -152,6 +153,21 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const markAsOutdated = useCallback(() => setSyncStatus("outdated"), []);
 
+  const dropActiveShows = async (ids: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('active_shows')
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+      
+      syncWithCloud();
+    } catch (error) {
+      console.error("Error dropping shows:", error);
+    }
+  };
+
   return (
     <SyncContext.Provider
       value={{
@@ -161,6 +177,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         logs,
         syncWithCloud,
         markAsOutdated,
+        dropActiveShows,
       }}
     >
       {children}

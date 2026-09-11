@@ -5,6 +5,7 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   useColorScheme,
   View,
@@ -35,6 +36,11 @@ export default function LogsScreen() {
   );
   
   const [visibleCount, setVisibleCount] = useState(20);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [searchQuery]);
 
   const toggleSort = () => {
     setSortOrder((prev) =>
@@ -62,15 +68,14 @@ export default function LogsScreen() {
     }
   }, [logs]);
 
-  const sortedItems = [...items].sort((a, b) => {
+  const filteredItems = items.filter((item) =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedItems = [...filteredItems].sort((a, b) => {
     const timeA = new Date(a.rawDate).getTime();
     const timeB = new Date(b.rawDate).getTime();
-
-    if (sortOrder === "Newest First") {
-      return timeB - timeA;
-    } else {
-      return timeA - timeB;
-    }
+    return sortOrder === "Newest First" ? timeB - timeA : timeA - timeB;
   });
 
   const visibleItems = sortedItems.slice(0, visibleCount);
@@ -138,25 +143,49 @@ export default function LogsScreen() {
             </Text>
           </TouchableOpacity>
 
-          <View className="flex-row items-center">
-            <Text className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Sort By:{" "}
-            </Text>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={toggleSort}
-              className="flex-row items-center bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded"
-            >
-              <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                {sortOrder}
+          <View className="flex-row items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 mb-4 shadow-sm">
+            <Feather name="search" size={16} color={iconMuted} />
+            <TextInput
+              className="flex-1 ml-2 text-sm text-slate-900 dark:text-white"
+              placeholder="Search logs..."
+              placeholderTextColor={iconMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Feather name="x" size={16} color={iconMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <Text className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Sort By:{" "}
               </Text>
-              <Feather
-                name={sortOrder === "Newest First" ? "arrow-down" : "arrow-up"}
-                size={14}
-                color={primaryColor}
-                className="ml-1"
-              />
-            </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={toggleSort}
+                className="flex-row items-center bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded"
+              >
+                <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                  {sortOrder}
+                </Text>
+                <Feather
+                  name={sortOrder === "Newest First" ? "arrow-down" : "arrow-up"}
+                  size={14}
+                  color={primaryColor}
+                  className="ml-1"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View className="bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">
+              <Text className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                {sortedItems.length} Logs
+              </Text>
+            </View>
           </View>
         </View>
 
