@@ -29,7 +29,7 @@ export default function CurrentlyWatchingScreen() {
   const isDark = colorScheme === "dark";
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
-  const { activeShows, syncStatus, syncWithCloud, dropActiveShows } = useSync();
+  const { activeShows, syncStatus, syncWithCloud, dropActiveShows, moveToLibrary } = useSync();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">("Chronological");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -37,6 +37,31 @@ export default function CurrentlyWatchingScreen() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const isLoadingEmpty = syncStatus === "syncing" && items.length === 0;
+
+  const canMoveToLibrary = selectedIds.size > 0 && Array.from(selectedIds).every(id => {
+    const item = items.find(i => i.id === id);
+    return item && item.totalEpisodes && item.currentEpisode >= item.totalEpisodes;
+  });
+
+  const confirmMoveToLibrary = () => {
+    Alert.alert(
+      "Move to Library",
+      `Archive ${selectedIds.size} completed series to your Library?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Move",
+          style: "default",
+          onPress: async () => {
+            if (moveToLibrary) {
+              await moveToLibrary(Array.from(selectedIds));
+            }
+            cancelSelection();
+          },
+        },
+      ]
+    );
+  };
 
   const toggleSort = () => {
     setSortOrder((prev) => (prev === "Chronological" ? "Alphabetical" : "Chronological"));
@@ -152,9 +177,18 @@ export default function CurrentlyWatchingScreen() {
               {selectedIds.size} Selected
             </Text>
 
-            <TouchableOpacity onPress={confirmDelete} className="px-3 py-1 bg-red-500 rounded">
-              <Text className="text-sm font-bold text-white">Drop</Text>
-            </TouchableOpacity>
+            <View className="flex-row items-center">
+              <TouchableOpacity 
+                onPress={confirmMoveToLibrary} 
+                disabled={!canMoveToLibrary}
+                className={`px-3 py-1 rounded mr-2 ${canMoveToLibrary ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"}`}
+              >
+                <Text className={`text-sm font-bold ${canMoveToLibrary ? "text-white" : "text-slate-400 dark:text-slate-500"}`}>Library</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={confirmDelete} className="px-3 py-1 bg-red-500 rounded">
+                <Text className="text-sm font-bold text-white">Drop</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       )}

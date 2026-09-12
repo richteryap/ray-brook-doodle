@@ -17,10 +17,12 @@ interface SyncContextType {
   syncStatus: SyncStatus;
   lastSynced: Date | null;
   activeShows: any[];
+  libraryShows: any[];
   logs: any[];
   syncWithCloud: () => Promise<void>;
   markAsOutdated: () => void;
   dropActiveShows: (ids: string[]) => Promise<void>;
+  moveToLibrary: (ids: string[]) => Promise<void>;
   clearData: () => Promise<void>;
 }
 
@@ -30,6 +32,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("offline");
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [activeShows, setActiveShows] = useState<any[]>([]);
+  const [libraryShows, setLibraryShows] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const isSyncingRef = useRef(false);
 
@@ -38,8 +41,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const cachedShows = await AsyncStorage.getItem("local_active_shows");
       const cachedLogs = await AsyncStorage.getItem("local_logs");
       const cachedSyncTime = await AsyncStorage.getItem("last_synced");
+      const cachedLibrary = await AsyncStorage.getItem("local_library_shows");
 
       if (cachedShows) setActiveShows(JSON.parse(cachedShows));
+      if (cachedLibrary) setLibraryShows(JSON.parse(cachedLibrary));
       if (cachedLogs) setLogs(JSON.parse(cachedLogs));
       if (cachedSyncTime) setLastSynced(new Date(cachedSyncTime));
     }
@@ -76,14 +81,20 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (showsRes.error) throw showsRes.error;
       if (logsRes.error) throw logsRes.error;
 
-      setActiveShows(showsRes.data || []);
+      const allShows = showsRes.data || [];
+      const watching = allShows.filter(show => !show.status || show.status.toLowerCase() === 'watching');
+      const completed = allShows.filter(show => show.status && show.status.toLowerCase() === 'completed');
+
+      setActiveShows(watching);
+      setLibraryShows(completed);
       setLogs(logsRes.data || []);
 
       const now = new Date();
       setLastSynced(now);
 
       await AsyncStorage.multiSet([
-        ["local_active_shows", JSON.stringify(showsRes.data || [])],
+        ["local_active_shows", JSON.stringify(watching)],
+        ["local_library_shows", JSON.stringify(completed)],
         ["local_logs", JSON.stringify(logsRes.data || [])],
         ["last_synced", now.toISOString()],
       ]);
@@ -99,12 +110,14 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const clearData = async () => {
     setActiveShows([]);
+    setLibraryShows([]);
     setLogs([]);
     setLastSynced(null);
     setSyncStatus("offline");
-    
+
     await AsyncStorage.multiRemove([
       "local_active_shows",
+      "local_library_shows",
       "local_logs",
       "last_synced",
     ]);
@@ -167,6 +180,21 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const markAsOutdated = useCallback(() => setSyncStatus("outdated"), []);
 
+  const moveToLibrary = async (ids: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('active_shows')
+        .update({ status: 'completed' })
+        .in('id', ids);
+
+      if (error) throw error;
+      
+      syncWithCloud();
+    } catch (error) {
+      console.error("Error moving to library:", error);
+    }
+  };
+
   const dropActiveShows = async (ids: string[]) => {
     try {
       const { error } = await supabase
@@ -188,10 +216,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         syncStatus,
         lastSynced,
         activeShows,
+        libraryShows,
         logs,
         syncWithCloud,
         markAsOutdated,
         dropActiveShows,
+        moveToLibrary,
         clearData,
       }}
     >
