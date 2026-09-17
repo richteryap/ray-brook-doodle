@@ -35,13 +35,15 @@ export default function DashboardScreen() {
         }
 
         const {
-          data: { user },
-        } = await supabase.auth.getUser();
+          data: { session },
+        } = await supabase.auth.getSession();
 
-        if (!user) {
+        if (!session) {
           router.replace("/login");
           return;
         }
+
+        const user = session.user;
 
         const { data } = await supabase
           .from("profiles")

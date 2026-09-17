@@ -65,13 +65,16 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
         setSyncStatus("offline");
         isSyncingRef.current = false;
         return;
       }
+
+      const user = session.user;
 
       const [showsRes, logsRes] = await Promise.all([
         supabase.from("active_shows").select("*").eq("user_id", user.id),
@@ -147,9 +150,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     let channel: any;
     async function setupRealtime() {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) return;
 
       channel = supabase
         .channel("db-changes")

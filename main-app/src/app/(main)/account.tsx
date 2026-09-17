@@ -74,10 +74,12 @@ export default function AccountScreen() {
       if (cachedApiKey) setApiKey(cachedApiKey);
 
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (user) {
+      if (session?.user) {
+        const user = session.user;
+
         if (user.email && user.email !== cachedEmail) {
           setEmail(user.email);
           await AsyncStorage.setItem("cached_email", user.email);
@@ -183,11 +185,14 @@ export default function AccountScreen() {
 
     setIsUpdating(true);
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const user = session?.user;
 
     if (!user) {
       setIsUpdating(false);
+      showPopup("Offline", "You must be online to update account details.");
       return;
     }
 
@@ -332,9 +337,10 @@ export default function AccountScreen() {
     setIsRegenerating(true);
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
+      const user = session?.user;
       if (!user) throw new Error("Not authenticated");
 
       const newKey = Crypto.randomUUID();
