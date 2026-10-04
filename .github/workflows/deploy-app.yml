@@ -41,10 +41,12 @@ jobs:
 
           echo "Build finished! Downloading APK from: $APK_URL"
 
-          curl -L -o ray-brook-app.apk "$APK_URL"
+          curl -L -o raybrook.apk "$APK_URL"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: main-app/ray-brook-app.apk
+          files: main-app/raybrook.apk
+          body: |
+            > ⚠️ **Architecture Notice:** This APK is compiled exclusively for **`arm64-v8a`** devices (64-bit). It will not install on 32-bit devices or x86 emulators.
           generate_release_notes: true

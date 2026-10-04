@@ -8,7 +8,7 @@ A personal media streaming tracker and logging ecosystem. Ray Brook lets you cap
 
 Grab the latest compiled builds directly from the **[Releases](../../releases)** tab:
 
-- **Android App:** Download `ray-brook-app.apk` under the latest `app-v*` release.
+- **Android App:** Download `raybrook.apk` under the latest `app-v*` release. The Android APK is strictly compiled for **64-bit ARM architecture (`arm64-v8a`)**
 - **Web Dashboard:** Access the live application at [raybrook.vercel.app](https://raybrook.vercel.app) or view release logs under the latest `web-v*` release.
 - **Chrome Extension:** Download `ray-brook-extension.zip` under the latest `ext-v*` release.
 
