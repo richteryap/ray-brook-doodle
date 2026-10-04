@@ -1,0 +1,23 @@
+name: Release Web Dashboard
+
+on:
+  push:
+    tags:
+      - "web-v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: |
+            🚀 **Live Web App:** [https://raybrook.vercel.app](https://raybrook.vercel.app)
+          generate_release_notes: true
