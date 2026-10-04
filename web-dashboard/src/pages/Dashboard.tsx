@@ -140,7 +140,8 @@ export default function Dashboard() {
         const { data: showsData, error: showsErr } = await supabase
           .from("active_shows")
           .select("id, show_name, latest_episode, total_episodes, updated_at")
-          .eq("user_id", targetUserId);
+          .eq("user_id", targetUserId)
+          .eq("is_archived", false);
 
         if (showsErr) throw showsErr;
 
