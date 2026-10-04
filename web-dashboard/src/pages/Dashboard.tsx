@@ -376,12 +376,12 @@ export default function Dashboard() {
             </div>
           </main>
         ) : (
-          <main className="max-w-[1750px] mx-auto px-8 py-5 w-full">
-            <div className="mb-4 flex items-end justify-between">
+          <main className="max-w-[1750px] mx-auto px-8 py-4 w-full">
+            <div className="mb-3 flex items-end justify-between">
               <div className="flex items-center gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">{profileName}'s Watchlist</h1>
-                  <p className="text-slate-500 mt-1 text-sm">Tracking {shows.length} active series</p>
+                  <h1 className="text-3xl font-bold text-slate-900">{profileName}'s Watchlist</h1>
+                  <p className="text-slate-500 text-sm">Tracking {shows.length} active series</p>
                 </div>
                 <button 
                   onClick={toggleFavorite}
@@ -420,10 +420,10 @@ export default function Dashboard() {
                 <table className="w-full text-left border-collapse whitespace-nowrap">
                   <thead>
                     <tr className="bg-slate-200/50 border-b border-slate-100 text-xs uppercase tracking-wider text-slate-500">
-                      <th className="py-4 pl-8 pr-2 font-semibold w-16">#</th>
+                      <th className="py-3 pl-8 pr-2 font-semibold w-16">#</th>
                       <th 
                         onClick={() => handleSort('show_name')}
-                        className="py-4 px-2 font-semibold cursor-pointer select-none hover:text-slate-900 hover:bg-slate-100/50 transition-colors group"
+                        className="py-3 px-2 font-semibold cursor-pointer select-none hover:text-slate-900 hover:bg-slate-100/50 transition-colors group"
                       >
                         <div className="flex items-center gap-2">
                           Title
@@ -436,11 +436,11 @@ export default function Dashboard() {
                           )}
                         </div>
                       </th>
-                      <th className="py-4 px-2 font-semibold text-center">Current Episode</th>
-                      <th className="py-4 px-2 font-semibold text-center">Episodes</th>
+                      <th className="py-3 px-2 font-semibold text-center">Current Episode</th>
+                      <th className="py-3 px-2 font-semibold text-center">Episodes</th>
                       <th 
                         onClick={() => handleSort('updated_at')}
-                        className="py-4 px-2 font-semibold text-center cursor-pointer select-none hover:text-slate-900 hover:bg-slate-100/50 transition-colors group"
+                        className="py-3 px-2 font-semibold text-center cursor-pointer select-none hover:text-slate-900 hover:bg-slate-100/50 transition-colors group"
                       >
                         <div className="flex items-center justify-center gap-2">
                           Last Watched
@@ -453,7 +453,7 @@ export default function Dashboard() {
                           )}
                         </div>
                       </th>
-                      <th className="py-4 pl-2 pr-6 font-semibold text-center">Status</th>
+                      <th className="py-3 pl-2 pr-6 font-semibold text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 text-sm">
@@ -461,11 +461,11 @@ export default function Dashboard() {
                       const statusUI = getDynamicStatus(show.latest_episode, show.total_episodes);
                       return (
                         <tr key={show.id} className="even:bg-slate-200/50 transition-colors group">
-                          <td className="py-4 pl-8 pr-2 text-slate-400 font-semibold"> {index + 1} </td>
-                          <td className="py-4 px-2 font-semibold text-slate-900 max-w-[300px] truncate"> {show.show_name} </td>
-                          <td className="py-4 px-2 text-slate-600 text-center"> Episode {show.latest_episode} </td>
-                          <td className="py-4 px-2 text-slate-600 text-center"> {show.total_episodes || "—"} </td>
-                          <td className="py-4 px-2 text-slate-500 text-center">
+                          <td className="py-2 pl-8 pr-2 text-slate-400 font-semibold"> {index + 1} </td>
+                          <td className="py-2 px-2 font-semibold text-slate-900 max-w-[300px] truncate"> {show.show_name} </td>
+                          <td className="py-2 px-2 text-slate-600 text-center"> Episode {show.latest_episode} </td>
+                          <td className="py-2 px-2 text-slate-600 text-center"> {show.total_episodes || "—"} </td>
+                          <td className="py-2 px-2 text-slate-500 text-center">
                             {new Date(show.updated_at).toLocaleString('en-US', { 
                               month: 'short', 
                               day: 'numeric', 
@@ -475,7 +475,7 @@ export default function Dashboard() {
                               hour12: true
                             })}
                           </td>
-                          <td className="py-4 pl-2 pr-6 text-center">
+                          <td className="py-2 pl-2 pr-6 text-center">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${statusUI.color}`}>
                               {statusUI.label}
                             </span>
