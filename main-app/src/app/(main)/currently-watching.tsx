@@ -29,6 +29,7 @@ export default function CurrentlyWatchingScreen() {
   const isDark = colorScheme === "dark";
   const primaryColor = isDark ? "#3b82f6" : "#2563eb";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
+  
   const { activeShows, syncStatus, syncWithCloud, dropActiveShows, moveToLibrary } = useSync();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">("Chronological");
@@ -38,10 +39,12 @@ export default function CurrentlyWatchingScreen() {
 
   const isLoadingEmpty = syncStatus === "syncing" && items.length === 0;
 
-  const canMoveToLibrary = selectedIds.size > 0 && Array.from(selectedIds).every(id => {
-    const item = items.find(i => i.id === id);
-    return item && item.totalEpisodes && item.currentEpisode >= item.totalEpisodes;
-  });
+  const canMoveToLibrary =
+    selectedIds.size > 0 &&
+    Array.from(selectedIds).every((id) => {
+      const item = items.find((i) => i.id === id);
+      return item && item.totalEpisodes && item.currentEpisode >= item.totalEpisodes;
+    });
 
   const confirmMoveToLibrary = () => {
     Alert.alert(
@@ -96,6 +99,7 @@ export default function CurrentlyWatchingScreen() {
     const timeB = new Date(b.rawDate).getTime();
     return sortOrder === "Chronological" ? timeB - timeA : a.title.localeCompare(b.title);
   });
+
   const handleLongPress = (id: string) => {
     if (!isSelectionMode) {
       setIsSelectionMode(true);
@@ -145,6 +149,7 @@ export default function CurrentlyWatchingScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
+      {/* Top Header */}
       <View className="flex-row items-center justify-between bg-white dark:bg-slate-800 px-3 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <View className="flex-row items-center">
           <Feather name="play-circle" size={24} color={isDark ? "white" : "black"} />
@@ -166,24 +171,33 @@ export default function CurrentlyWatchingScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Bulk Action Controls */}
       {isSelectionMode && (
         <View className="px-4 pt-4 pb-2 bg-slate-50 dark:bg-slate-900 z-10">
           <View className="flex-row items-center justify-between bg-blue-50 dark:bg-slate-800 p-2 rounded-lg border border-blue-200 dark:border-slate-600 shadow-sm">
             <TouchableOpacity onPress={cancelSelection} className="px-3 py-1">
               <Text className="text-sm font-semibold text-slate-600 dark:text-slate-400">Cancel</Text>
             </TouchableOpacity>
-            
+
             <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
               {selectedIds.size} Selected
             </Text>
 
             <View className="flex-row items-center">
-              <TouchableOpacity 
-                onPress={confirmMoveToLibrary} 
+              <TouchableOpacity
+                onPress={confirmMoveToLibrary}
                 disabled={!canMoveToLibrary}
-                className={`px-3 py-1 rounded mr-2 ${canMoveToLibrary ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"}`}
+                className={`px-3 py-1 rounded mr-2 ${
+                  canMoveToLibrary ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
+                }`}
               >
-                <Text className={`text-sm font-bold ${canMoveToLibrary ? "text-white" : "text-slate-400 dark:text-slate-500"}`}>Library</Text>
+                <Text
+                  className={`text-sm font-bold ${
+                    canMoveToLibrary ? "text-white" : "text-slate-400 dark:text-slate-500"
+                  }`}
+                >
+                  Library
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={confirmDelete} className="px-3 py-1 bg-red-500 rounded">
                 <Text className="text-sm font-bold text-white">Drop</Text>
@@ -193,15 +207,27 @@ export default function CurrentlyWatchingScreen() {
         </View>
       )}
 
+      {/* Series List */}
       <ScrollView
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={<RefreshControl refreshing={syncStatus === "syncing"} onRefresh={syncWithCloud} tintColor={primaryColor} colors={[primaryColor]} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={syncStatus === "syncing"}
+            onRefresh={syncWithCloud}
+            tintColor={primaryColor}
+            colors={[primaryColor]}
+          />
+        }
       >
         {!isSelectionMode && (
           <View className="pt-4 pb-4">
-            <TouchableOpacity activeOpacity={0.7} onPress={() => router.push("/dashboard")} className="flex-row items-center mb-4">
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push("/dashboard")}
+              className="flex-row items-center mb-4"
+            >
               <Ionicons name="arrow-back" size={18} color={primaryColor} />
               <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">Back</Text>
             </TouchableOpacity>
@@ -225,15 +251,24 @@ export default function CurrentlyWatchingScreen() {
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <Text className="text-sm font-medium text-slate-500 dark:text-slate-400">Sort By: </Text>
-                <TouchableOpacity activeOpacity={0.7} onPress={toggleSort} className="flex-row items-center bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded">
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={toggleSort}
+                  className="flex-row items-center bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded"
+                >
                   <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">{sortOrder}</Text>
-                  <Feather name={sortOrder === "Chronological" ? "arrow-down" : "arrow-up"} size={14} color={primaryColor} className="ml-1" />
+                  <Feather
+                    name={sortOrder === "Chronological" ? "arrow-down" : "arrow-up"}
+                    size={14}
+                    color={primaryColor}
+                    className="ml-1"
+                  />
                 </TouchableOpacity>
               </View>
 
               <View className="bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">
                 <Text className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                  {sortedItems.length} {sortedItems.length === 1 ? 'Series' : 'Series'}
+                  {sortedItems.length} Series
                 </Text>
               </View>
             </View>
@@ -243,7 +278,10 @@ export default function CurrentlyWatchingScreen() {
         <View className={isSelectionMode ? "gap-y-1 pt-2" : "gap-y-1"}>
           {isLoadingEmpty ? (
             [1, 2, 3, 4].map((key) => (
-              <View key={key} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden h-[104px] opacity-60">
+              <View
+                key={key}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden h-[104px] opacity-60"
+              >
                 <View className="flex-row items-center justify-between pt-4 pb-1 px-3 border-b border-slate-100 dark:border-slate-700/50 mt-2">
                   <View className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
                   <View className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700" />
@@ -270,7 +308,8 @@ export default function CurrentlyWatchingScreen() {
             </View>
           ) : (
             sortedItems.map((item) => {
-              const isCompleted = item.totalEpisodes ? item.currentEpisode >= item.totalEpisodes : false;
+              const isCompleted =
+                item.totalEpisodes ? item.currentEpisode >= item.totalEpisodes : false;
               const isSelected = selectedIds.has(item.id);
 
               return (
@@ -280,19 +319,29 @@ export default function CurrentlyWatchingScreen() {
                   onLongPress={() => handleLongPress(item.id)}
                   onPress={() => handlePress(item.id)}
                   className={`relative bg-white dark:bg-slate-800 border ${
-                    isSelected ? "border-blue-500 dark:border-blue-400 border-2" : "border-slate-200 dark:border-slate-700"
+                    isSelected
+                      ? "border-blue-500 dark:border-blue-400 border-2"
+                      : "border-slate-200 dark:border-slate-700"
                   } shadow-sm overflow-hidden flex-row`}
                 >
                   {isSelectionMode && (
                     <View className="w-12 items-center justify-center bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
-                      <View className={`w-5 h-5 rounded border ${isSelected ? "bg-blue-500 border-blue-500" : "border-slate-400"} items-center justify-center`}>
+                      <View
+                        className={`w-5 h-5 rounded border ${
+                          isSelected ? "bg-blue-500 border-blue-500" : "border-slate-400"
+                        }`}
+                      >
                         {isSelected && <Feather name="check" size={14} color="white" />}
                       </View>
                     </View>
                   )}
 
                   <View className="flex-1">
-                    <View className={`absolute top-0 left-0 px-4 py-0 rounded-br-xl z-10 ${isCompleted ? "bg-emerald-500" : "bg-cyan-500"}`}>
+                    <View
+                      className={`absolute top-0 left-0 px-4 py-0 rounded-br-xl z-10 ${
+                        isCompleted ? "bg-emerald-500" : "bg-cyan-500"
+                      }`}
+                    >
                       <Text className="text-white text-[10px] font-bold uppercase tracking-wider">
                         {isCompleted ? "Completed" : "Watching"}
                       </Text>
@@ -300,7 +349,10 @@ export default function CurrentlyWatchingScreen() {
 
                     <View className="flex-row items-center justify-between pt-4 pb-1 px-3 border-b border-slate-200 dark:border-slate-700 mt-2">
                       <View className="flex-1 pr-4">
-                        <Text className="text-sm font-bold text-slate-900 dark:text-white" numberOfLines={2}>
+                        <Text
+                          className="text-sm font-bold text-slate-900 dark:text-white"
+                          numberOfLines={2}
+                        >
                           {item.title}
                         </Text>
                       </View>

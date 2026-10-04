@@ -85,8 +85,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (logsRes.error) throw logsRes.error;
 
       const allShows = showsRes.data || [];
-      const watching = allShows.filter(show => !show.status || show.status.toLowerCase() === 'watching');
-      const completed = allShows.filter(show => show.status && show.status.toLowerCase() === 'completed');
+
+      const watching = allShows.filter((show) => !show.is_archived);
+      const completed = allShows.filter((show) => show.is_archived);
 
       setActiveShows(watching);
       setLibraryShows(completed);
@@ -186,13 +187,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const moveToLibrary = async (ids: string[]) => {
     try {
       const { error } = await supabase
-        .from('active_shows')
-        .update({ status: 'completed' })
-        .in('id', ids);
+        .from("active_shows")
+        .update({ is_archived: true })
+        .in("id", ids);
 
       if (error) throw error;
-      
-      syncWithCloud();
+      await syncWithCloud();
     } catch (error) {
       console.error("Error moving to library:", error);
     }
@@ -201,13 +201,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const dropActiveShows = async (ids: string[]) => {
     try {
       const { error } = await supabase
-        .from('active_shows')
+        .from("active_shows")
         .delete()
-        .in('id', ids);
+        .in("id", ids);
 
       if (error) throw error;
-      
-      syncWithCloud();
+      await syncWithCloud();
     } catch (error) {
       console.error("Error dropping shows:", error);
     }
