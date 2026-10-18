@@ -247,6 +247,15 @@ export default function AccountScreen() {
     await AsyncStorage.setItem("app_theme", nextTheme);
   };
 
+  const sanitizeCsvField = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined) return '""';
+    let str = String(val);
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    return `"${str.replace(/"/g, '""')}"`;
+  };
+
   const handleExportData = async () => {
     try {
       setIsExporting(true);
@@ -256,15 +265,16 @@ export default function AccountScreen() {
 
       if (activeShows) {
         activeShows.forEach((show) => {
-          const safeTitle = `"${show.show_name.replace(/"/g, '""')}"`;
-          csvContent += `Active Show,${safeTitle},${show.latest_episode},${show.total_episodes || "N/A"},${show.updated_at}\n`;
+          const safeTitle = sanitizeCsvField(show.show_name);
+          const safeTotal = show.total_episodes !== null && show.total_episodes !== undefined ? sanitizeCsvField(show.total_episodes) : '"N/A"';
+          csvContent += `Active Show,${safeTitle},${show.latest_episode || 0},${safeTotal},${show.updated_at}\n`;
         });
       }
 
       if (logs) {
         logs.forEach((log) => {
-          const safeTitle = `"${log.show_name.replace(/"/g, '""')}"`;
-          csvContent += `Watch Log,${safeTitle},${log.episode},N/A,${log.created_at}\n`;
+          const safeTitle = sanitizeCsvField(log.show_name);
+          csvContent += `Watch Log,${safeTitle},${log.episode || 0},N/A,${log.created_at}\n`;
         });
       }
 

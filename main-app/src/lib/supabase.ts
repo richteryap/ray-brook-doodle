@@ -6,7 +6,8 @@ if (Platform.OS !== "web") {
   require("react-native-url-polyfill/auto");
 }
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const rawSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+const supabaseUrl = rawSupabaseUrl.replace(/\/rest\/v1.*$/, "").replace(/\/+$/, "");
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {

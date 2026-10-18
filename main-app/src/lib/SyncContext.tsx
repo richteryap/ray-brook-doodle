@@ -77,8 +77,17 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const user = session.user;
 
       const [showsRes, logsRes] = await Promise.all([
-        supabase.from("active_shows").select("*").eq("user_id", user.id),
-        supabase.from("logs").select("*").eq("user_id", user.id),
+        supabase
+          .from("active_shows")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("logs")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(100),
       ]);
 
       if (showsRes.error) throw showsRes.error;
@@ -156,10 +165,15 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (!session?.user) return;
 
       channel = supabase
-        .channel("db-changes")
+        .channel(`db-changes-${session.user.id}`)
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "logs" },
+          {
+            event: "*",
+            schema: "public",
+            table: "logs",
+            filter: `user_id=eq.${session.user.id}`,
+          },
           () => {
             setSyncStatus("outdated");
             syncWithCloud();
@@ -167,7 +181,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         )
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "active_shows" },
+          {
+            event: "*",
+            schema: "public",
+            table: "active_shows",
+            filter: `user_id=eq.${session.user.id}`,
+          },
           () => {
             setSyncStatus("outdated");
             syncWithCloud();
@@ -186,9 +205,15 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const moveToLibrary = async (ids: string[]) => {
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
       const { error } = await supabase
         .from("active_shows")
         .update({ is_archived: true })
+        .eq("user_id", session.user.id)
         .in("id", ids);
 
       if (error) throw error;
@@ -200,9 +225,15 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const dropActiveShows = async (ids: string[]) => {
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
       const { error } = await supabase
         .from("active_shows")
         .delete()
+        .eq("user_id", session.user.id)
         .in("id", ids);
 
       if (error) throw error;

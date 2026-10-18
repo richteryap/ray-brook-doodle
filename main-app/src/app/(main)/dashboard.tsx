@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   RefreshControl,
   ScrollView,
@@ -23,6 +24,7 @@ export default function DashboardScreen() {
   const iconMuted = isDark ? "#94a3b8" : "#6B7280";
 
   const [username, setUsername] = useState("Loading...");
+  const [isAuthVerified, setIsAuthVerified] = useState(false);
 
   const { syncStatus, syncWithCloud } = useSync();
 
@@ -32,6 +34,7 @@ export default function DashboardScreen() {
         const cachedUsername = await AsyncStorage.getItem("cached_username");
         if (cachedUsername) {
           setUsername(cachedUsername);
+          setIsAuthVerified(true);
         }
 
         const {
@@ -42,6 +45,8 @@ export default function DashboardScreen() {
           router.replace("/login");
           return;
         }
+
+        setIsAuthVerified(true);
 
         const user = session.user;
 
@@ -69,6 +74,14 @@ export default function DashboardScreen() {
       loadDashboardData();
     }, []),
   );
+
+  if (!isAuthVerified) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <ActivityIndicator size="large" color={primaryColor} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
