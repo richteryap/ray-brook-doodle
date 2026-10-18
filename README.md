@@ -63,7 +63,7 @@ npm install
 npx expo start
 ```
 
-### Mobile App
+### Web Dashboard
 
 ```bash
 cd web-dashboard
