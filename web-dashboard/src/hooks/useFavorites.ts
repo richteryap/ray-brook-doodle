@@ -7,19 +7,15 @@ export interface SavedProfile {
 }
 
 export function useFavorites(currentUid?: string, currentName?: string) {
-  const [accounts, setAccounts] = useState<SavedProfile[]>([]);
-
-  // Load from local storage on mount
-  useEffect(() => {
+  const [accounts, setAccounts] = useState<SavedProfile[]>(() => {
     try {
       const stored = localStorage.getItem('raybrook_favorites');
-      if (stored) {
-        setAccounts(JSON.parse(stored));
-      }
+      return stored ? JSON.parse(stored) : [];
     } catch {
       console.error("Failed to parse favorites payload");
+      return [];
     }
-  }, []);
+  });
 
   // Auto-save current valid profile (Strict Duplicate Prevention)
   useEffect(() => {

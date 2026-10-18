@@ -114,7 +114,7 @@ export default function Account() {
     setError(null);
     setSuccess(null);
     
-    const newKey = `rb_ext_${crypto.randomUUID().replace(/-/g, '')}`;
+    const newKey = crypto.randomUUID();
     
     const { error } = await supabase
       .from('profiles')
@@ -128,6 +128,15 @@ export default function Account() {
       setSuccess("New API Key generated successfully!");
     }
     setGeneratingKey(false);
+  };
+
+  const sanitizeCsvField = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined) return '""';
+    let str = String(val);
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    return `"${str.replace(/"/g, '""')}"`;
   };
 
   const handleExportData = async () => {
@@ -148,16 +157,14 @@ export default function Account() {
 
       if (data) {
         data.forEach(show => {
-          // Wrap show_name in quotes and escape internal quotes to prevent commas from breaking the CSV
-          const safeName = `"${show.show_name.replace(/"/g, '""')}"`;
+          const safeName = sanitizeCsvField(show.show_name);
           const latestEp = show.latest_episode || 0;
-          const totalEp = show.total_episodes || "";
+          const totalEp = show.total_episodes !== null && show.total_episodes !== undefined ? sanitizeCsvField(show.total_episodes) : '""';
           
-          // Format the date neatly
-          const dateWathed = new Date(show.updated_at).toLocaleString('en-US', { 
+          const dateWatched = new Date(show.updated_at).toLocaleString('en-US', { 
             month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true 
           });
-          const safeDate = `"${dateWathed}"`;
+          const safeDate = sanitizeCsvField(dateWatched);
 
           csvContent += `${safeName},${latestEp},${totalEp},${safeDate}\n`;
         });

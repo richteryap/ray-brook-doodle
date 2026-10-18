@@ -141,7 +141,8 @@ export default function Dashboard() {
           .from("active_shows")
           .select("id, show_name, latest_episode, total_episodes, updated_at")
           .eq("user_id", targetUserId)
-          .eq("is_archived", false);
+          .eq("is_archived", false)
+          .order("updated_at", { ascending: false });
 
         if (showsErr) throw showsErr;
 
@@ -152,9 +153,16 @@ export default function Dashboard() {
 
       } catch (err: unknown) {
         if (isMounted) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          console.error("Dashboard load error:", errorMessage);
-          setError("Failed to load dashboard data.");
+          const errorMessage =
+            err instanceof Error
+              ? err.message
+              : err && typeof err === "object" && "message" in err
+                ? String((err as any).message)
+                : typeof err === "string"
+                  ? err
+                  : "Failed to load dashboard data.";
+          console.error("Dashboard load error:", err);
+          setError(errorMessage);
           setLoading(false);
         }
       }
@@ -396,8 +404,13 @@ export default function Dashboard() {
                 </button>
               </div>
               {(() => {
-                const targetDate = shows.length > 0 && shows[0].updated_at 
-                  ? new Date(shows[0].updated_at) 
+                const latestTimestamp = shows.reduce((latest, show) => {
+                  const showTime = new Date(show.updated_at).getTime();
+                  return showTime > latest ? showTime : latest;
+                }, 0);
+
+                const targetDate = latestTimestamp > 0
+                  ? new Date(latestTimestamp)
                   : new Date();
                 
                 const month = targetDate.getMonth() + 1;
