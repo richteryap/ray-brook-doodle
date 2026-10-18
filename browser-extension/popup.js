@@ -47,6 +47,12 @@ document.getElementById('changeKeyBtn').addEventListener('click', () => {
 document.getElementById('logBtn').addEventListener('click', () => {
     statusDiv.innerText = "Beaming to server...";
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+        if (!tabs || tabs.length === 0 || !tabs[0]?.id) {
+            statusDiv.innerText = "Error: No active tab.";
+            statusDiv.style.color = "#f44336";
+            showNotification("Error", "No active browser tab found.");
+            return;
+        }
         chrome.tabs.sendMessage(tabs[0].id, {action: "log_episode"}, (response) => {
             
             if (chrome.runtime.lastError) {
