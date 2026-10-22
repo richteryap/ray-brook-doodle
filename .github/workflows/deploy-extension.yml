@@ -1,4 +1,4 @@
-name: Package Chrome Extension
+name: Package Browser Extension
 
 on:
   push:
@@ -15,13 +15,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Zip Extension
+      - name: Package Extension (.zip & .xpi)
         run: |
           cd browser-extension
           zip -r ../ray-brook-extension.zip . -x "*.git*"
+          cp ../ray-brook-extension.zip ../ray-brook-extension.xpi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ray-brook-extension.zip
+          files: |
+            ray-brook-extension.zip
+            ray-brook-extension.xpi
           generate_release_notes: true

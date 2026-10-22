@@ -10,7 +10,7 @@ Grab the latest compiled builds directly from the **[Releases](../../releases)**
 
 - **Android App:** Download `raybrook.apk` under the latest `app-v*` release. The Android APK is strictly compiled for **64-bit ARM architecture (`arm64-v8a`)**
 - **Web Dashboard:** Access the live application at [raybrook.vercel.app](https://raybrook.vercel.app) or view release logs under the latest `web-v*` release.
-- **Chrome Extension:** Download `ray-brook-extension.zip` under the latest `ext-v*` release.
+- **Browser Extension:** Download `ray-brook-extension.zip` (for Chromium via "Load unpacked") or `ray-brook-extension.xpi` (for Zen Browser / Firefox via "Install Add-on From File...") under the latest `ext-v*` release.
 
 ---
 
@@ -71,11 +71,18 @@ npm install
 npm run dev
 ```
 
-### Chrome Extension
+### Browser Extension
 
-1. Open Google Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** (top right).
-3. Click **Load unpacked** and select the `browser-extension` folder.
+#### Chrome & Chromium-based (Brave, Edge, Opera)
+1. Open your browser and navigate to `chrome://extensions/`.
+2. Enable **Developer mode** (top right toggle).
+3. Click **Load unpacked** and select the `browser-extension` folder (or extracted `.zip` release).
+4. Click the extension icon, enter your secret Supabase profile API key, and hit **Save Key**.
+
+#### Zen Browser & Firefox-based (Gecko)
+1. Open Zen Browser and press `Ctrl + Shift + A` (or navigate to `about:addons`).
+2. Click the ⚙️ gear icon in the top-right corner.
+3. Select **Install Add-on From File...** and choose `ray-brook-extension.xpi` (or load temporarily from `about:debugging` → This Firefox → Load Temporary Add-on).
 4. Click the extension icon, enter your secret Supabase profile API key, and hit **Save Key**.
 
 ---
@@ -85,7 +92,7 @@ npm run dev
 Builds and distribution packages are managed automatically via GitHub Actions:
 
 - **Pushing tag `app-v*`** triggers an Expo EAS cloud build, downloads the compiled APK, and creates a GitHub Release.
-- **Pushing tag `ext-v*`** bundles the extension into a `.zip` file and attaches it to a GitHub Release.
+- **Pushing tag `ext-v*`** bundles the extension into `.zip` and `.xpi` packages and attaches them to a GitHub Release.
 - **Pushing tag `web-v*`** publishes a GitHub Release tagged with change notes and direct access to the live Vercel web deployment.
 
 ## ©️ License
