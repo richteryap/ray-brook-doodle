@@ -23,7 +23,7 @@ export default function LibraryScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const primaryColor = isDark ? "#f8fafc" : "#0f172a";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
   const { libraryShows, syncStatus, syncWithCloud } = useSync();
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,7 +114,7 @@ export default function LibraryScreen() {
                 className="flex-row items-center mb-4"
               >
                 <Ionicons name="arrow-back" size={18} color={primaryColor} />
-                <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">Back</Text>
+                <Text className="ml-1 text-sm font-semibold text-slate-900 dark:text-white">Back</Text>
               </TouchableOpacity>
 
               <View className="flex-row items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 mb-2 shadow-sm">

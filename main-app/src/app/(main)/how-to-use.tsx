@@ -15,7 +15,7 @@ export default function HowToUseScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const primaryColor = isDark ? "#f8fafc" : "#0f172a";
 
   useEffect(() => {
     async function requireAuth() {
@@ -53,7 +53,7 @@ export default function HowToUseScreen() {
             className="flex-row items-center mb-4"
           >
             <Ionicons name="arrow-back" size={18} color={primaryColor} />
-            <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
+            <Text className="ml-1 text-sm font-semibold text-slate-900 dark:text-white">
               Back
             </Text>
           </TouchableOpacity>

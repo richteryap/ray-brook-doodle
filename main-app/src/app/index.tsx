@@ -45,7 +45,7 @@ export default function Index() {
           className="w-10 h-10 object-contain"
         />
       </View>
-      <ActivityIndicator size="small" color={isDark ? "#3b82f6" : "#2563eb"} />
+      <ActivityIndicator size="small" color={isDark ? "#f8fafc" : "#0f172a"} />
     </View>
   );
 }

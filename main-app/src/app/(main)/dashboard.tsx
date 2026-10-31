@@ -20,7 +20,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const primaryColor = isDark ? "#f8fafc" : "#0f172a";
   const iconMuted = isDark ? "#94a3b8" : "#6B7280";
 
   const [username, setUsername] = useState("Loading...");
@@ -134,7 +134,7 @@ export default function DashboardScreen() {
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push("/account")}
-            className="w-10 h-10 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center border border-blue-200 dark:border-slate-600"
+            className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center border border-slate-200 dark:border-slate-600"
           >
             <Feather name="user" size={20} color={primaryColor} />
           </TouchableOpacity>

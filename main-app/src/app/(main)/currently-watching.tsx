@@ -27,7 +27,7 @@ export default function CurrentlyWatchingScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const primaryColor = isDark ? "#f8fafc" : "#0f172a";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
   
   const { activeShows, syncStatus, syncWithCloud, dropActiveShows, moveToLibrary } = useSync();
@@ -174,12 +174,12 @@ export default function CurrentlyWatchingScreen() {
       {/* Bulk Action Controls */}
       {isSelectionMode && (
         <View className="px-4 pt-4 pb-2 bg-slate-50 dark:bg-slate-900 z-10">
-          <View className="flex-row items-center justify-between bg-blue-50 dark:bg-slate-800 p-2 rounded-lg border border-blue-200 dark:border-slate-600 shadow-sm">
+          <View className="flex-row items-center justify-between bg-slate-100 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
             <TouchableOpacity onPress={cancelSelection} className="px-3 py-1">
               <Text className="text-sm font-semibold text-slate-600 dark:text-slate-400">Cancel</Text>
             </TouchableOpacity>
 
-            <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
+            <Text className="text-sm font-bold text-slate-900 dark:text-white">
               {selectedIds.size} Selected
             </Text>
 
@@ -229,7 +229,7 @@ export default function CurrentlyWatchingScreen() {
               className="flex-row items-center mb-4"
             >
               <Ionicons name="arrow-back" size={18} color={primaryColor} />
-              <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">Back</Text>
+              <Text className="ml-1 text-sm font-semibold text-slate-900 dark:text-white">Back</Text>
             </TouchableOpacity>
 
             <View className="flex-row items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 mb-4 shadow-sm">
@@ -254,9 +254,9 @@ export default function CurrentlyWatchingScreen() {
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={toggleSort}
-                  className="flex-row items-center bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded"
+                  className="flex-row items-center bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded"
                 >
-                  <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">{sortOrder}</Text>
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white">{sortOrder}</Text>
                   <Feather
                     name={sortOrder === "Chronological" ? "arrow-down" : "arrow-up"}
                     size={14}
@@ -320,7 +320,7 @@ export default function CurrentlyWatchingScreen() {
                   onPress={() => handlePress(item.id)}
                   className={`relative bg-white dark:bg-slate-800 border ${
                     isSelected
-                      ? "border-blue-500 dark:border-blue-400 border-2"
+                      ? "border-slate-900 dark:border-white border-2"
                       : "border-slate-200 dark:border-slate-700"
                   } shadow-sm overflow-hidden flex-row`}
                 >
@@ -328,10 +328,10 @@ export default function CurrentlyWatchingScreen() {
                     <View className="w-12 items-center justify-center bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
                       <View
                         className={`w-5 h-5 rounded border ${
-                          isSelected ? "bg-blue-500 border-blue-500" : "border-slate-400"
+                          isSelected ? "bg-slate-900 dark:bg-white border-slate-900 dark:border-white" : "border-slate-400"
                         }`}
                       >
-                        {isSelected && <Feather name="check" size={14} color="white" />}
+                        {isSelected && <Feather name="check" size={14} color={isDark ? "#0f172a" : "white"} />}
                       </View>
                     </View>
                   )}
@@ -357,7 +357,7 @@ export default function CurrentlyWatchingScreen() {
                         </Text>
                       </View>
                       {!isSelectionMode && (
-                        <View className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center">
+                        <View className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center">
                           <Feather name="arrow-up-right" size={16} color={primaryColor} />
                         </View>
                       )}
