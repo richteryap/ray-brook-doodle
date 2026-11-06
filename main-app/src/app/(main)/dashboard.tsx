@@ -65,10 +65,7 @@ export default function DashboardScreen() {
           setUsername("User");
         }
 
-        const cachedSyncTime = await AsyncStorage.getItem("last_synced");
-        if (!cachedSyncTime) {
-          syncWithCloud();
-        }
+        syncWithCloud();
       }
 
       loadDashboardData();

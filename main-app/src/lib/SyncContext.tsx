@@ -69,7 +69,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        setSyncStatus("offline");
         isSyncingRef.current = false;
         return;
       }
@@ -158,21 +157,22 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let channel: any;
-    async function setupRealtime() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.user) return;
+
+    function subscribeUser(userId: string) {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
 
       channel = supabase
-        .channel(`db-changes-${session.user.id}`)
+        .channel(`db-changes-${userId}`)
         .on(
           "postgres_changes",
           {
             event: "*",
             schema: "public",
             table: "logs",
-            filter: `user_id=eq.${session.user.id}`,
+            filter: `user_id=eq.${userId}`,
           },
           () => {
             setSyncStatus("outdated");
@@ -185,7 +185,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
             event: "*",
             schema: "public",
             table: "active_shows",
-            filter: `user_id=eq.${session.user.id}`,
+            filter: `user_id=eq.${userId}`,
           },
           () => {
             setSyncStatus("outdated");
@@ -195,8 +195,30 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         .subscribe();
     }
 
-    setupRealtime();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        subscribeUser(session.user.id);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        subscribeUser(session.user.id);
+        if (event === "SIGNED_IN") {
+          syncWithCloud();
+        }
+      } else {
+        if (channel) {
+          supabase.removeChannel(channel);
+          channel = null;
+        }
+      }
+    });
+
     return () => {
+      subscription.unsubscribe();
       if (channel) supabase.removeChannel(channel);
     };
   }, [syncWithCloud]);
