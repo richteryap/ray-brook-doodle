@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useFavorites } from "../hooks/useFavorites";
+import { getSeasonFromDate } from "../utils/season";
 
 interface Show {
   id: string;
@@ -440,21 +441,13 @@ export default function Dashboard() {
                   return showTime > latest ? showTime : latest;
                 }, 0);
 
-                const targetDate = latestTimestamp > 0
-                  ? new Date(latestTimestamp)
-                  : new Date();
-                
-                const month = targetDate.getMonth() + 1;
-                const year = targetDate.getFullYear();
-                
-                let seasonName = "Winter";
-                if (month >= 4 && month <= 6) seasonName = "Spring";
-                else if (month >= 7 && month <= 9) seasonName = "Summer";
-                else if (month >= 10 && month <= 12) seasonName = "Fall";
+                const { season, year } = getSeasonFromDate(
+                  latestTimestamp > 0 ? latestTimestamp : new Date()
+                );
 
                 return (
                   <div className="hidden sm:flex items-center gap-2 px-4 py-2">
-                    <span className="text-4xl font-extrabold text-slate-900">{seasonName} {year}</span>
+                    <span className="text-4xl font-extrabold text-slate-900">{season} {year}</span>
                   </div>
                 );
               })()}
