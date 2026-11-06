@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [profileName, setProfileName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
+  const [titleFilter, setTitleFilter] = useState("");
 
   const [sortKey, setSortKey] = useState<SortKey>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -237,7 +238,11 @@ export default function Dashboard() {
     }
   };
 
-  const sortedShows = [...shows].sort((a, b) => {
+  const filteredShows = shows.filter((show) =>
+    show.show_name.toLowerCase().includes(titleFilter.toLowerCase().trim())
+  );
+
+  const sortedShows = [...filteredShows].sort((a, b) => {
     if (sortKey === 'show_name') {
       const compare = a.show_name.localeCompare(b.show_name);
       return sortDirection === 'asc' ? compare : -compare;
@@ -426,11 +431,14 @@ export default function Dashboard() {
           </main>
         ) : (
           <main className="max-w-[1750px] mx-auto px-8 py-4 w-full">
-            <div className="mb-3 flex items-end justify-between">
+            <div className="mb-3 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div>
                   <h1 className="text-3xl font-bold text-slate-900">{profileName}'s Watchlist</h1>
-                  <p className="text-slate-500 text-sm">Tracking {shows.length} active series</p>
+                  <p className="text-slate-500 text-sm">
+                    Tracking {shows.length} active series
+                    {titleFilter.trim() ? ` (${sortedShows.length} matching)` : ""}
+                  </p>
                 </div>
                 <button 
                   onClick={toggleFavorite}
@@ -443,22 +451,48 @@ export default function Dashboard() {
                   <Star className={`w-5 h-5 ${isCurrentFavorite ? "fill-white text-white" : "text-slate-400"}`} />
                 </button>
               </div>
-              {(() => {
-                const latestTimestamp = shows.reduce((latest, show) => {
-                  const showTime = new Date(show.updated_at).getTime();
-                  return showTime > latest ? showTime : latest;
-                }, 0);
 
-                const { season, year } = getSeasonFromDate(
-                  latestTimestamp > 0 ? latestTimestamp : new Date()
-                );
+              <div className="flex items-center gap-4 sm:gap-6 flex-wrap sm:flex-nowrap justify-end">
+                {/* Search bar to the left side of the seasonal badge */}
+                <div className="relative w-64 sm:w-72">
+                  <input
+                    type="text"
+                    value={titleFilter}
+                    onChange={(e) => setTitleFilter(e.target.value)}
+                    placeholder="Search titles..."
+                    className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all shadow-sm"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  {titleFilter ? (
+                    <button
+                      type="button"
+                      onClick={() => setTitleFilter("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : null}
+                </div>
 
-                return (
-                  <div className="hidden sm:flex items-center gap-2 px-4 py-2">
-                    <span className="text-4xl font-extrabold text-slate-900">{season} {year}</span>
-                  </div>
-                );
-              })()}
+                {/* Seasonal Badge to the right */}
+                {(() => {
+                  const latestTimestamp = shows.reduce((latest, show) => {
+                    const showTime = new Date(show.updated_at).getTime();
+                    return showTime > latest ? showTime : latest;
+                  }, 0);
+
+                  const { season, year } = getSeasonFromDate(
+                    latestTimestamp > 0 ? latestTimestamp : new Date()
+                  );
+
+                  return (
+                    <div className="hidden sm:flex items-center gap-2 px-2 py-1">
+                      <span className="text-3xl sm:text-4xl font-extrabold text-slate-900">{season} {year}</span>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
@@ -534,6 +568,14 @@ export default function Dashboard() {
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-slate-500">
                           No active shows are currently being tracked.
+                        </td>
+                      </tr>
+                    )}
+
+                    {shows.length > 0 && sortedShows.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-500">
+                          No shows found matching "{titleFilter}".
                         </td>
                       </tr>
                     )}
