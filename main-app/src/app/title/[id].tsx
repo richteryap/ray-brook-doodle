@@ -20,7 +20,7 @@ export default function TitleDetailsScreen() {
   const { id, title: paramTitle } = useLocalSearchParams<{ id: string; title?: string }>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const primaryColor = isDark ? "#f8fafc" : "#0f172a";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
 
   const { activeShows, libraryShows, logs, syncStatus, syncWithCloud } = useSync();
@@ -92,11 +92,11 @@ export default function TitleDetailsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-900">
-      {/* Top Header matching app convention */}
+      {/* Top Header matching app convention with purple header logo */}
       <View className="flex-row items-center justify-between bg-white dark:bg-slate-800 px-4 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <View className="flex-row items-center">
-          <Feather name="tv" size={22} color={isDark ? "#94a3b8" : "#2563eb"} />
-          <Text className="text-slate-800 dark:text-slate-200 ml-2.5 text-base font-bold">
+          <Feather name="tv" size={24} color="#A855F7" />
+          <Text className="text-slate-900 dark:text-white ml-2.5 text-lg font-bold">
             Anime Details
           </Text>
         </View>
@@ -128,7 +128,7 @@ export default function TitleDetailsScreen() {
           className="flex-row items-center"
         >
           <Ionicons name="arrow-back" size={18} color={primaryColor} />
-          <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">Back</Text>
+          <Text className="ml-1 text-sm font-semibold text-slate-900 dark:text-white">Back</Text>
         </TouchableOpacity>
       </View>
 
@@ -136,7 +136,7 @@ export default function TitleDetailsScreen() {
       {loading ? (
         <View className="flex-1 items-center justify-center px-6">
           <ActivityIndicator size="large" color={primaryColor} />
-          <Text className="text-base font-bold text-slate-800 dark:text-slate-200 mt-4 text-center">
+          <Text className="text-base font-bold text-slate-900 dark:text-white mt-4 text-center">
             Getting data from AniList...
           </Text>
           <Text className="text-xs text-slate-500 dark:text-slate-400 mt-1 text-center">
@@ -158,9 +158,9 @@ export default function TitleDetailsScreen() {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => loadDetails(true)}
-            className="px-6 py-3 bg-blue-600 dark:bg-blue-500 rounded-xl"
+            className="px-6 py-3 bg-slate-900 dark:bg-white rounded-xl shadow-sm"
           >
-            <Text className="text-white font-bold text-sm">Try Again</Text>
+            <Text className="text-white dark:text-slate-900 font-bold text-sm">Try Again</Text>
           </TouchableOpacity>
         </View>
       ) : errorState ? (
@@ -177,9 +177,9 @@ export default function TitleDetailsScreen() {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => loadDetails(true)}
-            className="px-6 py-3 bg-blue-600 dark:bg-blue-500 rounded-xl"
+            className="px-6 py-3 bg-slate-900 dark:bg-white rounded-xl shadow-sm"
           >
-            <Text className="text-white font-bold text-sm">Retry</Text>
+            <Text className="text-white dark:text-slate-900 font-bold text-sm">Retry</Text>
           </TouchableOpacity>
         </View>
       ) : animeData ? (
@@ -198,9 +198,9 @@ export default function TitleDetailsScreen() {
         >
           {/* Cache Status Banner */}
           {isFromCache && (
-            <View className="flex-row items-center justify-center bg-slate-100 dark:bg-slate-800/80 rounded-lg py-1.5 px-3 mb-3 border border-slate-200 dark:border-slate-700">
+            <View className="flex-row items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg py-1.5 px-3 mb-3 border border-slate-200 dark:border-slate-700">
               <Feather name="hard-drive" size={12} color={iconMuted} />
-              <Text className="text-[11px] text-slate-500 dark:text-slate-400 ml-1.5 font-medium">
+              <Text className="text-[11px] text-slate-600 dark:text-slate-300 ml-1.5 font-medium">
                 Offline Cache Active (5-week countdown refreshed)
               </Text>
             </View>
@@ -230,7 +230,7 @@ export default function TitleDetailsScreen() {
                     {animeData.englishTitle}
                   </Text>
                   {animeData.nativeTitle ? (
-                    <Text className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                       {animeData.nativeTitle}
                     </Text>
                   ) : null}
@@ -239,20 +239,8 @@ export default function TitleDetailsScreen() {
                 {/* Quick Info Tags */}
                 <View className="gap-y-1.5 mt-2">
                   <View className="flex-row items-center">
-                    <View
-                      className={`px-2.5 py-0.5 rounded-md border ${
-                        animeData.status === "Finished Airing"
-                          ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20"
-                          : "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
-                      }`}
-                    >
-                      <Text
-                        className={`text-[11px] font-bold ${
-                          animeData.status === "Finished Airing"
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-blue-600 dark:text-blue-400"
-                        }`}
-                      >
+                    <View className="px-2.5 py-0.5 rounded-md border bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600">
+                      <Text className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
                         {animeData.status}
                       </Text>
                     </View>
@@ -260,7 +248,7 @@ export default function TitleDetailsScreen() {
 
                   <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Episodes:{" "}
-                    <Text className="font-bold text-blue-600 dark:text-blue-400">
+                    <Text className="font-bold text-slate-900 dark:text-white">
                       {animeData.episodes ? animeData.episodes : "Ongoing / TBA"}
                     </Text>
                   </Text>
@@ -334,7 +322,7 @@ export default function TitleDetailsScreen() {
             <Text className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2.5">
               Synopsis
             </Text>
-            <Text className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+            <Text className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
               {animeData.description}
             </Text>
           </View>

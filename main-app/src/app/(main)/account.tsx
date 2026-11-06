@@ -400,6 +400,16 @@ export default function AccountScreen() {
 
   return (
     <SafeAreaView className="flex-1 w-full h-full bg-slate-50 dark:bg-slate-900">
+      {/* Top Header */}
+      <View className="flex-row items-center justify-between bg-white dark:bg-slate-800 px-4 py-4 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <View className="flex-row items-center">
+          <Feather name="user" size={24} color="#6366F1" />
+          <Text className="text-slate-900 dark:text-white ml-2.5 text-lg font-bold">
+            Account
+          </Text>
+        </View>
+      </View>
+
       <ScrollView
         className="flex-1 w-full h-full px-4 bg-slate-50 dark:bg-slate-900"
         showsVerticalScrollIndicator={false}
@@ -425,8 +435,8 @@ export default function AccountScreen() {
         </View>
 
         <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 items-center shadow-sm border border-slate-200 dark:border-slate-700 mb-2">
-          <View className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center mb-4">
-            <Feather name="user" size={32} color={primaryColor} />
+          <View className="w-20 h-20 rounded-full bg-indigo-50 dark:bg-indigo-500/10 items-center justify-center mb-4 border border-indigo-200 dark:border-indigo-500/20">
+            <Feather name="user" size={32} color="#6366F1" />
           </View>
           <Text className="text-xl font-bold text-slate-900 dark:text-white">
             {username}
