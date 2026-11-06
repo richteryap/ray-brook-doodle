@@ -24,6 +24,23 @@ interface SyncContextType {
   dropActiveShows: (ids: string[]) => Promise<void>;
   moveToLibrary: (ids: string[]) => Promise<void>;
   clearData: () => Promise<void>;
+  manualLogEpisode: (
+    showId: string,
+    showName: string,
+    newEpisode: number,
+    logDate: Date
+  ) => Promise<{
+    success: boolean;
+    logId: string;
+    previousEpisode: number;
+    previousDate: string;
+  }>;
+  undoManualLog: (
+    showId: string,
+    previousEpisode: number,
+    previousDate: string,
+    logId: string
+  ) => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -265,6 +282,137 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const manualLogEpisode = async (
+    showId: string,
+    showName: string,
+    newEpisode: number,
+    logDate: Date
+  ): Promise<{
+    success: boolean;
+    logId: string;
+    previousEpisode: number;
+    previousDate: string;
+  }> => {
+    const targetShow = activeShows.find((s) => s.id === showId);
+    const previousEpisode = targetShow ? targetShow.latest_episode : newEpisode - 1;
+    const previousDate = targetShow ? targetShow.updated_at : new Date().toISOString();
+    const isoDate = logDate.toISOString();
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error("User not authenticated");
+
+    const { error: showErr } = await supabase
+      .from("active_shows")
+      .update({
+        latest_episode: newEpisode,
+        updated_at: isoDate,
+      })
+      .eq("id", showId)
+      .eq("user_id", session.user.id);
+
+    if (showErr) throw showErr;
+
+    const { data: logData, error: logErr } = await supabase
+      .from("logs")
+      .insert({
+        user_id: session.user.id,
+        raw_title: `${showName} Episode ${newEpisode}`,
+        show_name: showName,
+        episode: newEpisode,
+        created_at: isoDate,
+      })
+      .select()
+      .single();
+
+    if (logErr) throw logErr;
+
+    const logId = logData?.id || "temp-" + Date.now();
+
+    const updatedActiveShows = activeShows.map((s) =>
+      s.id === showId
+        ? { ...s, latest_episode: newEpisode, updated_at: isoDate }
+        : s
+    );
+    const newLogEntry = logData || {
+      id: logId,
+      user_id: session.user.id,
+      raw_title: `${showName} Episode ${newEpisode}`,
+      show_name: showName,
+      episode: newEpisode,
+      created_at: isoDate,
+    };
+    const updatedLogs = [newLogEntry, ...logs.filter((l) => l.id !== logId)];
+
+    setActiveShows(updatedActiveShows);
+    setLogs(updatedLogs);
+
+    await AsyncStorage.multiSet([
+      ["local_active_shows", JSON.stringify(updatedActiveShows)],
+      ["local_logs", JSON.stringify(updatedLogs)],
+    ]);
+
+    return {
+      success: true,
+      logId,
+      previousEpisode,
+      previousDate,
+    };
+  };
+
+  const undoManualLog = async (
+    showId: string,
+    previousEpisode: number,
+    previousDate: string,
+    logId: string
+  ) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { error: showErr } = await supabase
+        .from("active_shows")
+        .update({
+          latest_episode: previousEpisode,
+          updated_at: previousDate,
+        })
+        .eq("id", showId)
+        .eq("user_id", session.user.id);
+
+      if (showErr) console.warn("Failed to revert active show in cloud:", showErr);
+
+      if (logId && !logId.startsWith("temp-")) {
+        const { error: logErr } = await supabase
+          .from("logs")
+          .delete()
+          .eq("id", logId)
+          .eq("user_id", session.user.id);
+
+        if (logErr) console.warn("Failed to delete log from cloud:", logErr);
+      }
+
+      const revertedActiveShows = activeShows.map((s) =>
+        s.id === showId
+          ? { ...s, latest_episode: previousEpisode, updated_at: previousDate }
+          : s
+      );
+      const revertedLogs = logs.filter((l) => l.id !== logId);
+
+      setActiveShows(revertedActiveShows);
+      setLogs(revertedLogs);
+
+      await AsyncStorage.multiSet([
+        ["local_active_shows", JSON.stringify(revertedActiveShows)],
+        ["local_logs", JSON.stringify(revertedLogs)],
+      ]);
+    } catch (error) {
+      console.error("Undo failed:", error);
+    }
+  };
+
   return (
     <SyncContext.Provider
       value={{
@@ -278,6 +426,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         dropActiveShows,
         moveToLibrary,
         clearData,
+        manualLogEpisode,
+        undoManualLog,
       }}
     >
       {children}

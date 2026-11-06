@@ -265,10 +265,10 @@ export default function HowToUseScreen() {
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-bold text-slate-900 dark:text-white">
-                  Currently Watching
+                  Currently Watching & Manual Logging
                 </Text>
                 <Text className="text-xs leading-4 text-slate-500 dark:text-slate-400 mt-0.5">
-                  Track in-progress shows, sort chronologically or alphabetically, and use multi-select bulk actions to move completed series to Library or Drop them.
+                  Track in-progress shows, sort chronologically or alphabetically, and tap any title for full AniList details. Tap the emerald <Text className="font-bold text-emerald-600 dark:text-emerald-400">+1</Text> button for instant episode logging with editable time and a 5-second undo rollback window. Long-press cards for multi-select bulk actions to Drop or move to Library.
                 </Text>
               </View>
             </View>

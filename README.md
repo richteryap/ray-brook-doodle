@@ -30,19 +30,22 @@ ray-brook/
 
 ## 🚀 Components
 
-### 1. Mobile Dashboard (`/main-app`)
+### 1. Mobile App (`/main-app`)
 
 - Built with **React Native**, **Expo Router**, and **NativeWind (Tailwind CSS)**.
-- Real-time synchronization and storage powered by **Supabase**.
-- Tracks active watching status, episode counts, and chronological viewing history.
-- Features title search filtering and bulk-drop management for active series.
+- Real-time synchronization and offline-first storage powered by **Supabase** and **AsyncStorage**.
+- **Manual Logging (+1)**: Instant 1-tap episode increment with editable timestamp and a 5-second ephemeral undo toast.
+- **Anime Details & 5-Week Cache**: On-demand AniList GraphQL metadata (synopsis, status, studio, genres, broadcast schedule) with a rolling 5-week offline cache.
+- **Watchlist & Library Management**: Real-time title search filtering, bulk-drop, and archive-to-Library for completed shows.
+- **Chronological Logs**: Full audit trail of watched episodes with exact device/server timestamps.
 
 ### 2. Web Dashboard (`/web-dashboard`)
 
 - Built with **React**, **Vite**, **TypeScript**, and **Tailwind CSS**.
 - Public watchlist viewing and bookmarking by 8-digit profile UID (`/u/:uid`).
-- Real-time tracking and series status indicators with custom sorting and seasonal badges.
-- User management center
+- Real-time title search filtering and live Supabase Realtime channel subscriptions.
+- Automatic profile discovery with favorite-first ribbon sorting (`useFavorites`).
+- Account management center with secure API key reveal/rotation and sanitized CSV data export.
 
 ### 3. Browser Extension (`/browser-extension`)
 

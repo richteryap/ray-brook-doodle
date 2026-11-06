@@ -1,8 +1,9 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   Text,
@@ -30,12 +31,152 @@ export default function CurrentlyWatchingScreen() {
   const primaryColor = isDark ? "#f8fafc" : "#0f172a";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
   
-  const { activeShows, syncStatus, syncWithCloud, dropActiveShows, moveToLibrary } = useSync();
+  const {
+    activeShows,
+    syncStatus,
+    syncWithCloud,
+    dropActiveShows,
+    moveToLibrary,
+    manualLogEpisode,
+    undoManualLog,
+  } = useSync();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">("Chronological");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Manual Log Modal State
+  const [logModalVisible, setLogModalVisible] = useState(false);
+  const [loggingShow, setLoggingShow] = useState<MediaItem | null>(null);
+  const [targetEpisode, setTargetEpisode] = useState<number>(1);
+  const [logDateInput, setLogDateInput] = useState("");
+  const [logTimeInput, setLogTimeInput] = useState("");
+  const [isSubmittingLog, setIsSubmittingLog] = useState(false);
+
+  // 5-Second Undo Toast State
+  const [undoToast, setUndoToast] = useState<{
+    visible: boolean;
+    showId: string;
+    showTitle: string;
+    episode: number;
+    logId: string;
+    previousEpisode: number;
+    previousDate: string;
+    secondsLeft: number;
+  } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const getDeviceCurrentDateTime = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return {
+      date: `${year}-${month}-${day}`,
+      time: `${hours}:${minutes}`,
+    };
+  };
+
+  const openManualLog = (item: MediaItem) => {
+    const dt = getDeviceCurrentDateTime();
+    setLoggingShow(item);
+    setTargetEpisode(item.currentEpisode + 1);
+    setLogDateInput(dt.date);
+    setLogTimeInput(dt.time);
+    setLogModalVisible(true);
+  };
+
+  const handleSaveLog = async () => {
+    if (!loggingShow || !manualLogEpisode) return;
+
+    let chosenDate: Date;
+    try {
+      const [year, month, day] = logDateInput.split("-").map(Number);
+      const [hours, minutes] = logTimeInput.split(":").map(Number);
+      if (
+        isNaN(year) ||
+        isNaN(month) ||
+        isNaN(day) ||
+        isNaN(hours) ||
+        isNaN(minutes)
+      ) {
+        throw new Error("Invalid format");
+      }
+      chosenDate = new Date(year, month - 1, day, hours, minutes);
+      if (isNaN(chosenDate.getTime())) {
+        throw new Error("Invalid date");
+      }
+    } catch {
+      Alert.alert(
+        "Invalid Date/Time",
+        "Please use YYYY-MM-DD for date and HH:mm (24-hour) for time, or tap 'Reset to Now'."
+      );
+      return;
+    }
+
+    setIsSubmittingLog(true);
+    try {
+      const result = await manualLogEpisode(
+        loggingShow.id,
+        loggingShow.title,
+        targetEpisode,
+        chosenDate
+      );
+
+      setLogModalVisible(false);
+
+      if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+
+      setUndoToast({
+        visible: true,
+        showId: loggingShow.id,
+        showTitle: loggingShow.title,
+        episode: targetEpisode,
+        logId: result.logId,
+        previousEpisode: result.previousEpisode,
+        previousDate: result.previousDate,
+        secondsLeft: 5,
+      });
+
+      let remaining = 5;
+      undoTimerRef.current = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+          undoTimerRef.current = null;
+          setUndoToast(null);
+        } else {
+          setUndoToast((prev) => (prev ? { ...prev, secondsLeft: remaining } : null));
+        }
+      }, 1000);
+    } catch (err: any) {
+      Alert.alert("Error logging episode", err?.message || "Failed to log episode.");
+    } finally {
+      setIsSubmittingLog(false);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undoToast || !undoManualLog) return;
+    if (undoTimerRef.current) {
+      clearInterval(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+
+    const { showId, previousEpisode, previousDate, logId } = undoToast;
+    setUndoToast(null);
+
+    await undoManualLog(showId, previousEpisode, previousDate, logId);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+    };
+  }, []);
 
   const isLoadingEmpty = syncStatus === "syncing" && items.length === 0;
 
@@ -317,11 +458,8 @@ export default function CurrentlyWatchingScreen() {
               const isSelected = selectedIds.has(item.id);
 
               return (
-                <TouchableOpacity
+                <View
                   key={item.id}
-                  activeOpacity={0.8}
-                  onLongPress={() => handleLongPress(item.id)}
-                  onPress={() => handlePress(item.id)}
                   className={`relative bg-white dark:bg-slate-800 border ${
                     isSelected
                       ? "border-slate-900 dark:border-white border-2"
@@ -329,7 +467,11 @@ export default function CurrentlyWatchingScreen() {
                   } shadow-sm overflow-hidden flex-row`}
                 >
                   {isSelectionMode && (
-                    <View className="w-12 items-center justify-center bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => handlePress(item.id)}
+                      className="w-12 items-center justify-center bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700"
+                    >
                       <View
                         className={`w-5 h-5 rounded border ${
                           isSelected ? "bg-slate-900 dark:bg-white border-slate-900 dark:border-white" : "border-slate-400"
@@ -337,7 +479,7 @@ export default function CurrentlyWatchingScreen() {
                       >
                         {isSelected && <Feather name="check" size={14} color={isDark ? "#0f172a" : "white"} />}
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   )}
 
                   <View className="flex-1">
@@ -352,42 +494,233 @@ export default function CurrentlyWatchingScreen() {
                     </View>
 
                     <View className="flex-row items-center justify-between pt-4 pb-1 px-3 border-b border-slate-200 dark:border-slate-700 mt-2">
-                      <View className="flex-1 pr-4">
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onLongPress={() => handleLongPress(item.id)}
+                        onPress={() => handlePress(item.id)}
+                        className="flex-1 pr-3"
+                      >
                         <Text
                           className="text-sm font-bold text-slate-900 dark:text-white"
                           numberOfLines={2}
                         >
                           {item.title}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
+
                       {!isSelectionMode && (
-                        <View className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center">
-                          <Feather name="arrow-up-right" size={16} color={primaryColor} />
-                        </View>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => openManualLog(item)}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500 active:bg-emerald-600 flex-row items-center justify-center shadow-xs"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Feather name="plus" size={12} color="#ffffff" />
+                          <Text className="text-xs font-bold text-white ml-0.5">
+                            1
+                          </Text>
+                        </TouchableOpacity>
                       )}
                     </View>
 
-                    <View className="py-1 px-3 border-r border-slate-200 dark:border-slate-700 justify-center bg-slate-50/50 dark:bg-slate-800">
-                      <Text className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                        Episode {item.currentEpisode}
-                        {item.totalEpisodes ? ` out of ${item.totalEpisodes} Total Episodes` : " (Ongoing)"}
-                      </Text>
-                    </View>
-
-                    <View className="flex-row">
-                      <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50 dark:bg-slate-800">
-                        <Text className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                          Last Watched: {item.lastWatched}
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onLongPress={() => handleLongPress(item.id)}
+                      onPress={() => handlePress(item.id)}
+                    >
+                      <View className="py-1 px-3 border-r border-slate-200 dark:border-slate-700 justify-center bg-slate-50/50 dark:bg-slate-800">
+                        <Text className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                          Episode {item.currentEpisode}
+                          {item.totalEpisodes ? ` out of ${item.totalEpisodes} Total Episodes` : " (Ongoing)"}
                         </Text>
                       </View>
-                    </View>
+
+                      <View className="flex-row">
+                        <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50 dark:bg-slate-800">
+                          <Text className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                            Last Watched: {item.lastWatched}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
                   </View>
-                </TouchableOpacity>
+                </View>
               );
             })
           )}
         </View>
       </ScrollView>
+
+      {/* Manual Log Modal */}
+      <Modal
+        visible={logModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/60 items-center justify-center px-4">
+          <View className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-xl">
+            {/* Header */}
+            <View className="flex-row items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-700 mb-3">
+              <View className="flex-row items-center flex-1 pr-2">
+                <Ionicons name="play-circle" size={20} color="#EF4444" />
+                <Text
+                  className="text-base font-bold text-slate-900 dark:text-white ml-2 flex-1"
+                  numberOfLines={1}
+                >
+                  Log Episode
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setLogModalVisible(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center"
+              >
+                <Feather name="x" size={14} color={iconMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Warning Banner */}
+            <View className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg p-3 mb-4">
+              <View className="flex-row items-center mb-1">
+                <Feather name="alert-triangle" size={14} color="#d97706" />
+                <Text className="text-xs font-bold text-amber-800 dark:text-amber-300 ml-1.5">
+                  Notice
+                </Text>
+              </View>
+              <Text className="text-xs text-amber-700 dark:text-amber-400">
+                This action cannot be undone after the 5-second popup disappears.
+              </Text>
+            </View>
+
+            {/* Show Details & Next Episode */}
+            <View className="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 mb-4">
+              <Text
+                className="text-sm font-bold text-slate-900 dark:text-white mb-2"
+                numberOfLines={2}
+              >
+                {loggingShow?.title}
+              </Text>
+
+              <View className="flex-row items-center">
+                <Text className="text-sm text-slate-600 dark:text-slate-300">
+                  Episode {loggingShow?.currentEpisode}{" "}
+                  <Text className="text-slate-400 dark:text-slate-500 font-bold">➔</Text>{" "}
+                  <Text className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                    Episode {targetEpisode}
+                  </Text>
+                  {loggingShow?.totalEpisodes ? ` of ${loggingShow.totalEpisodes}` : ""}
+                </Text>
+              </View>
+            </View>
+
+            {/* Date & Time Fields */}
+            <View className="gap-y-3 mb-4">
+              <View>
+                <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Date (YYYY-MM-DD)
+                </Text>
+                <TextInput
+                  value={logDateInput}
+                  onChangeText={setLogDateInput}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={iconMuted}
+                  className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white font-mono"
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+
+              <View>
+                <View className="flex-row items-center justify-between mb-1">
+                  <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Time (HH:mm - 24hr)
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const dt = getDeviceCurrentDateTime();
+                      setLogDateInput(dt.date);
+                      setLogTimeInput(dt.time);
+                    }}
+                  >
+                    <Text className="text-xs font-bold text-slate-900 dark:text-white underline">
+                      Reset to Now
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <TextInput
+                  value={logTimeInput}
+                  onChangeText={setLogTimeInput}
+                  placeholder="HH:mm"
+                  placeholderTextColor={iconMuted}
+                  className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white font-mono"
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+            </View>
+
+            {/* Modal Actions */}
+            <View className="flex-row items-center gap-x-2 pt-2">
+              <TouchableOpacity
+                onPress={() => setLogModalVisible(false)}
+                disabled={isSubmittingLog}
+                className="flex-1 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 items-center justify-center"
+              >
+                <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleSaveLog}
+                disabled={isSubmittingLog}
+                className="flex-1 py-2.5 rounded-lg bg-emerald-500 active:bg-emerald-600 items-center justify-center shadow-sm"
+              >
+                <Text className="text-sm font-bold text-white">
+                  {isSubmittingLog ? "Saving..." : "Save & Log"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 5-Second Undo Toast */}
+      {undoToast && (
+        <View className="absolute bottom-6 left-4 right-4 z-50 bg-slate-900 dark:bg-white border border-slate-800 dark:border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+          <View className="flex-row items-center justify-between p-3.5">
+            <View className="flex-row items-center flex-1 pr-2">
+              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              <View className="ml-2.5 flex-1">
+                <Text
+                  className="text-xs font-bold text-white dark:text-slate-900"
+                  numberOfLines={1}
+                >
+                  Logged Ep {undoToast.episode}: {undoToast.showTitle}
+                </Text>
+                <Text className="text-[11px] text-slate-400 dark:text-slate-500">
+                  Undo expires in {undoToast.secondsLeft}s
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleUndo}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 flex-row items-center shadow-xs"
+            >
+              <Feather name="rotate-ccw" size={12} color="#ffffff" />
+              <Text className="text-xs font-bold text-white ml-1">Undo</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Countdown Progress Bar */}
+          <View className="h-1 bg-slate-800 dark:bg-slate-200 w-full overflow-hidden">
+            <View
+              className="h-full bg-amber-500"
+              style={{ width: `${(undoToast.secondsLeft / 5) * 100}%` }}
+            />
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
