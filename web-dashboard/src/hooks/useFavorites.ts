@@ -17,40 +17,44 @@ export function useFavorites(currentUid?: string, currentName?: string) {
     }
   });
 
-  // Auto-save current valid profile (Strict Duplicate Prevention)
+  // Update profile name in saved accounts if it changed on the server
   useEffect(() => {
     if (!currentUid || !currentName) return;
-    
+
     setAccounts((prev) => {
       const existingIndex = prev.findIndex(a => a.uid === currentUid);
-      
-      // If the UID is already saved...
-      if (existingIndex !== -1) {
-        // Check if they changed their profile name and update it silently
-        if (prev[existingIndex].profileName !== currentName) {
-          const updatedAccounts = [...prev];
-          updatedAccounts[existingIndex].profileName = currentName;
-          localStorage.setItem('raybrook_favorites', JSON.stringify(updatedAccounts));
-          return updatedAccounts;
-        }
-        return prev; // No changes needed
+      if (existingIndex !== -1 && prev[existingIndex].profileName !== currentName) {
+        const updatedAccounts = [...prev];
+        updatedAccounts[existingIndex] = {
+          ...updatedAccounts[existingIndex],
+          profileName: currentName,
+        };
+        localStorage.setItem('raybrook_favorites', JSON.stringify(updatedAccounts));
+        return updatedAccounts;
       }
-      
-      // Brand new UID, add it
-      const newAccounts = [...prev, { uid: currentUid, profileName: currentName, isFavorite: false }];
-      localStorage.setItem('raybrook_favorites', JSON.stringify(newAccounts));
-      return newAccounts;
+      return prev;
     });
   }, [currentUid, currentName]);
 
-  // Toggle Star Status
+  // Toggle Star Status (Explicit user action saves or removes profile)
   const toggleFavorite = () => {
     if (!currentUid) return;
-    
+
     setAccounts((prev) => {
-      const newAccounts = prev.map(acc => 
-        acc.uid === currentUid ? { ...acc, isFavorite: !acc.isFavorite } : acc
-      );
+      const existingIndex = prev.findIndex(acc => acc.uid === currentUid);
+      let newAccounts: SavedProfile[];
+
+      if (existingIndex !== -1) {
+        // Already saved; toggle removes it from saved list
+        newAccounts = prev.filter(acc => acc.uid !== currentUid);
+      } else {
+        // Not saved; add it as a favorited profile
+        newAccounts = [
+          ...prev,
+          { uid: currentUid, profileName: currentName || 'Profile', isFavorite: true },
+        ];
+      }
+
       localStorage.setItem('raybrook_favorites', JSON.stringify(newAccounts));
       return newAccounts;
     });
@@ -66,12 +70,12 @@ export function useFavorites(currentUid?: string, currentName?: string) {
     });
   };
 
-  const isCurrentFavorite = accounts.find(a => a.uid === currentUid)?.isFavorite || false;
+  const isCurrentFavorite = accounts.some(a => a.uid === currentUid);
   
   // Sort Favorites to the left (starred first), then alphabetically
   const sortedAccounts = [...accounts].sort((a, b) => {
-    if (a.isFavorite === b.isFavorite) {
-       return a.profileName.localeCompare(b.profileName);
+    if (Boolean(a.isFavorite) === Boolean(b.isFavorite)) {
+      return a.profileName.localeCompare(b.profileName);
     }
     return a.isFavorite ? -1 : 1;
   });
