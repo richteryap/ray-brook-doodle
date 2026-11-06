@@ -32,7 +32,17 @@ export default function Register() {
       setError(signUpError.message);
       setLoading(false);
     } else if (data.session) {
-      navigate("/");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("public_uid")
+        .eq("id", data.session.user.id)
+        .single();
+
+      if (profile?.public_uid) {
+        navigate(`/u/${profile.public_uid}`);
+      } else {
+        navigate("/");
+      }
     } else {
       setSuccess(true);
       setLoading(false);
