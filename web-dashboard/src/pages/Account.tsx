@@ -1,4 +1,4 @@
-import { Loader2, ArrowLeft, Copy, Check, User as UserIcon, LogOut, KeyRound, Code, Download, Settings, FileText, BookOpen, HelpCircle } from "lucide-react";
+import { Loader2, ArrowLeft, Copy, Check, User as UserIcon, LogOut, KeyRound, Code, Download, Settings, FileText, BookOpen, HelpCircle, Eye, EyeOff, RotateCw } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { type User as SupabaseUser } from "@supabase/supabase-js";
@@ -28,6 +28,7 @@ export default function Account() {
   const [success, setSuccess] = useState<string | null>(null);
   const [copiedUid, setCopiedUid] = useState(false);
   const [copiedApi, setCopiedApi] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
   
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -128,6 +129,15 @@ export default function Account() {
       setSuccess("New API Key generated successfully!");
     }
     setGeneratingKey(false);
+  };
+
+  const handleRegenerateApiKey = async () => {
+    if (!currentUser) return;
+    const confirmed = window.confirm(
+      "Are you sure you want to regenerate your Extension API Key? Any browser extension using your current key will stop syncing until updated."
+    );
+    if (!confirmed) return;
+    await handleGenerateApiKey();
   };
 
   const sanitizeCsvField = (val: string | number | null | undefined): string => {
@@ -460,22 +470,43 @@ export default function Account() {
                       </h2>
                       
                       <div className="space-y-2">
-                        <div className="bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 flex items-center justify-between">
-                          <div className="overflow-hidden mr-4">
+                        <div className="bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 flex items-center justify-between">
+                          <div className="overflow-hidden mr-4 flex-1">
                             <p className="font-bold text-slate-900">Extension API Key</p>
                             <p className="text-sm text-slate-500 truncate font-mono">
-                              {apiKey ? "••••••••••••••••••••" : "No key generated"}
+                              {apiKey
+                                ? (showApiKey ? apiKey : "••••••••••••••••••••")
+                                : "No key generated"}
                             </p>
                           </div>
                           {apiKey ? (
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboard(apiKey, 'api')}
-                              className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shrink-0"
-                              title="Copy API Key"
-                            >
-                              {copiedApi ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                            </button>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setShowApiKey(!showApiKey)}
+                                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
+                                title={showApiKey ? "Hide API Key" : "Reveal API Key"}
+                              >
+                                {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(apiKey, 'api')}
+                                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
+                                title="Copy API Key"
+                              >
+                                {copiedApi ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleRegenerateApiKey}
+                                disabled={generatingKey}
+                                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                                title="Regenerate API Key"
+                              >
+                                {generatingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCw className="w-4 h-4" />}
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"
