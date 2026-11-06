@@ -25,7 +25,7 @@ export default function LogsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const primaryColor = isDark ? "#f8fafc" : "#0f172a";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
   const { logs, syncStatus, syncWithCloud } = useSync();
   const [items, setItems] = useState<MediaItem[]>([]);
@@ -138,7 +138,7 @@ export default function LogsScreen() {
             className="flex-row items-center mb-4"
           >
             <Ionicons name="arrow-back" size={18} color={primaryColor} />
-            <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
+            <Text className="ml-1 text-sm font-semibold text-slate-900 dark:text-white">
               Back
             </Text>
           </TouchableOpacity>
@@ -167,9 +167,9 @@ export default function LogsScreen() {
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={toggleSort}
-                className="flex-row items-center bg-blue-50 dark:bg-slate-700 px-2 py-1 rounded"
+                className="flex-row items-center bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded"
               >
-                <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                <Text className="text-sm font-bold text-slate-900 dark:text-white">
                   {sortOrder}
                 </Text>
                 <Feather
@@ -234,7 +234,7 @@ export default function LogsScreen() {
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => router.push({ pathname: "/title/[id]", params: { id: item.id, title: item.title } })}
-                    className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center"
+                    className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center"
                   >
                     <Feather
                       name="arrow-up-right"
@@ -247,7 +247,7 @@ export default function LogsScreen() {
                 <View className="flex-row">
                   <View className="flex-1 py-2 px-3 justify-center bg-slate-50/50 dark:bg-slate-800">
                     <Text className="text-sm text-slate-500 dark:text-slate-400">
-                      <Text className="font-bold text-blue-600 dark:text-blue-400">
+                      <Text className="font-bold text-slate-900 dark:text-white">
                         Episode {item.currentEpisode}
                       </Text>
                       {" @ "}
@@ -272,10 +272,10 @@ export default function LogsScreen() {
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => setVisibleCount((prev) => prev + 20)}
-                className="px-6 py-3 rounded-full bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 flex-row items-center"
+                className="px-6 py-3 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex-row items-center"
               >
                 <Feather name="chevron-down" size={16} color={primaryColor} />
-                <Text className="ml-2 text-sm font-bold text-blue-600 dark:text-blue-400">
+                <Text className="ml-2 text-sm font-bold text-slate-900 dark:text-white">
                   Load More
                 </Text>
               </TouchableOpacity>

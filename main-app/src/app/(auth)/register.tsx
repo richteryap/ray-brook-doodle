@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { ComponentRef, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -31,9 +31,9 @@ export default function RegisterScreen() {
   const [authError, setAuthError] = useState("");
   const [authSuccess, setAuthSuccess] = useState("");
 
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
+  const emailRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const passwordRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const confirmPasswordRef = useRef<ComponentRef<typeof TextInput>>(null);
 
   const handleRegister = async () => {
     setHasSubmitted(true);
@@ -289,11 +289,11 @@ export default function RegisterScreen() {
             disabled={loading}
             className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${
               loading
-                ? "bg-blue-400 dark:bg-blue-500/50"
-                : "bg-blue-600 dark:bg-blue-500"
+                ? "bg-slate-400 dark:bg-slate-700"
+                : "bg-slate-900 dark:bg-white"
             }`}
           >
-            <Text className="text-white text-base font-bold">
+            <Text className={`${loading ? "text-slate-200" : "text-white dark:text-slate-900"} text-base font-bold`}>
               {loading ? "Creating Account..." : "Create Account"}
             </Text>
           </TouchableOpacity>
@@ -303,7 +303,7 @@ export default function RegisterScreen() {
               Already have an account?{" "}
             </Text>
             <TouchableOpacity onPress={() => router.push("/login")}>
-              <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
+              <Text className="text-sm font-bold text-slate-900 dark:text-white">
                 Log in
               </Text>
             </TouchableOpacity>

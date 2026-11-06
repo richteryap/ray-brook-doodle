@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { ComponentRef, useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -45,7 +45,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const primaryColor = isDark ? "#f8fafc" : "#0f172a";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
 
   const [email, setEmail] = useState("");
@@ -64,8 +64,8 @@ export default function LoginScreen() {
   });
   const [onPopupClose, setOnPopupClose] = useState<(() => void) | null>(null);
 
-  const passwordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const confirmPasswordRef = useRef<ComponentRef<typeof TextInput>>(null);
   const isRecoveryRef = useRef(false);
 
   const linkingUrl = Linking.useLinkingURL();
@@ -328,9 +328,9 @@ export default function LoginScreen() {
                 activeOpacity={0.8}
                 onPress={handleSetNewPassword}
                 disabled={loading}
-                className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${loading ? "bg-blue-400 dark:bg-blue-500/50" : "bg-blue-600 dark:bg-blue-500"}`}
+                className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${loading ? "bg-slate-400 dark:bg-slate-700" : "bg-slate-900 dark:bg-white"}`}
               >
-                <Text className="text-white text-base font-bold">
+                <Text className={`${loading ? "text-slate-200" : "text-white dark:text-slate-900"} text-base font-bold`}>
                   {loading ? "Updating..." : "Save Password"}
                 </Text>
               </TouchableOpacity>
@@ -338,7 +338,7 @@ export default function LoginScreen() {
           ) : (
             <>
               <View className="items-center mb-8">
-                <View className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-slate-700 items-center justify-center overflow-hidden mb-4">
+                <View className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 items-center justify-center overflow-hidden mb-4 border border-slate-200 dark:border-slate-700">
                   <Image
                     source={require("../../../assets/images/logo.png")}
                     className="w-10 h-10 object-contain"
@@ -416,7 +416,7 @@ export default function LoginScreen() {
                   activeOpacity={0.7}
                   onPress={handleForgotPassword}
                 >
-                  <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white">
                     Forgot Password?
                   </Text>
                 </TouchableOpacity>
@@ -426,9 +426,9 @@ export default function LoginScreen() {
                 activeOpacity={0.8}
                 onPress={handleLogin}
                 disabled={loading}
-                className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${loading ? "bg-blue-400 dark:bg-blue-500/50" : "bg-blue-600 dark:bg-blue-500"}`}
+                className={`w-full py-4 rounded-full items-center justify-center shadow-sm ${loading ? "bg-slate-400 dark:bg-slate-700" : "bg-slate-900 dark:bg-white"}`}
               >
-                <Text className="text-white text-base font-bold">
+                <Text className={`${loading ? "text-slate-200" : "text-white dark:text-slate-900"} text-base font-bold`}>
                   {loading ? "Logging in..." : "Log in"}
                 </Text>
               </TouchableOpacity>
@@ -438,7 +438,7 @@ export default function LoginScreen() {
                   Don't have an account?{" "}
                 </Text>
                 <TouchableOpacity onPress={() => router.push("/register")}>
-                  <Text className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white">
                     Register
                   </Text>
                 </TouchableOpacity>
@@ -459,7 +459,7 @@ export default function LoginScreen() {
           className="flex-1 w-full h-full justify-center items-center bg-black/50 p-5"
         >
           <View className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 items-center">
-            <View className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 items-center justify-center mb-4">
+            <View className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center mb-4">
               <Feather name="mail" size={24} color={primaryColor} />
             </View>
             <Text className="text-xl font-bold text-slate-900 dark:text-white mb-2 text-center">
@@ -470,9 +470,9 @@ export default function LoginScreen() {
             </Text>
             <TouchableOpacity
               onPress={handleCloseModal}
-              className="w-full py-4 rounded-xl bg-blue-600 dark:bg-blue-500 items-center"
+              className="w-full py-4 rounded-xl bg-slate-900 dark:bg-white items-center"
             >
-              <Text className="text-white font-bold text-base">Got it</Text>
+              <Text className="text-white dark:text-slate-900 font-bold text-base">Got it</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

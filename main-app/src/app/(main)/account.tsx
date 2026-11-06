@@ -29,12 +29,14 @@ export default function AccountScreen() {
   const router = useRouter();
   const { colorScheme, setColorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  const primaryColor = isDark ? "#3b82f6" : "#2563eb";
+  const primaryColor = isDark ? "#f8fafc" : "#0f172a";
   const iconMuted = isDark ? "#94a3b8" : "#64748b";
   const { activeShows, logs, clearData } = useSync();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("Loading...");
+  const [publicUid, setPublicUid] = useState("Loading...");
   const [apiKey, setApiKey] = useState("Loading...");
+  const [copiedUid, setCopiedUid] = useState(false);
   const [themePref, setThemePref] = useState<"system" | "light" | "dark">( "system", );
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editType, setEditType] = useState<EditType>(null);
@@ -68,10 +70,12 @@ export default function AccountScreen() {
       const cachedUsername = await AsyncStorage.getItem("cached_username");
       const cachedEmail = await AsyncStorage.getItem("cached_email");
       const cachedApiKey = await AsyncStorage.getItem("cached_api_key");
+      const cachedPublicUid = await AsyncStorage.getItem("cached_public_uid");
 
       if (cachedUsername) setUsername(cachedUsername);
       if (cachedEmail) setEmail(cachedEmail);
       if (cachedApiKey) setApiKey(cachedApiKey);
+      if (cachedPublicUid) setPublicUid(cachedPublicUid);
 
       const {
         data: { session },
@@ -87,7 +91,7 @@ export default function AccountScreen() {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("username, api_key")
+          .select("username, api_key, public_uid")
           .eq("id", user.id)
           .single();
 
@@ -95,6 +99,13 @@ export default function AccountScreen() {
           if (data.username !== cachedUsername) {
             setUsername(data.username);
             await AsyncStorage.setItem("cached_username", data.username);
+          }
+          if (data.public_uid !== undefined && data.public_uid !== null) {
+            const uidStr = data.public_uid.toString();
+            setPublicUid(uidStr);
+            await AsyncStorage.setItem("cached_public_uid", uidStr);
+          } else {
+            setPublicUid("N/A");
           }
           if (data.api_key && data.api_key !== cachedApiKey) {
             setApiKey(data.api_key);
@@ -143,7 +154,8 @@ export default function AccountScreen() {
       await AsyncStorage.multiRemove([
         "cached_username",
         "cached_email",
-        "cached_api_key"
+        "cached_api_key",
+        "cached_public_uid"
       ]);
       router.replace("/login");
     }
@@ -332,6 +344,15 @@ export default function AccountScreen() {
     }
   };
 
+  const copyUidToClipboard = async () => {
+    if (publicUid && publicUid !== "Loading..." && publicUid !== "N/A") {
+      await Clipboard.setStringAsync(publicUid);
+      setCopiedUid(true);
+      setTimeout(() => setCopiedUid(false), 2000);
+      showPopup("Copied to Clipboard", "Your Public UID has been copied.");
+    }
+  };
+
   const handleRegenerateApiKey = () => {
     Alert.alert(
       "Regenerate API Key",
@@ -397,19 +418,36 @@ export default function AccountScreen() {
             className="flex-row items-center"
           >
             <Ionicons name="arrow-back" size={18} color={primaryColor} />
-            <Text className="ml-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
+            <Text className="ml-1 text-sm font-semibold text-slate-900 dark:text-white">
               Back
             </Text>
           </TouchableOpacity>
         </View>
 
         <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 items-center shadow-sm border border-slate-200 dark:border-slate-700 mb-2">
-          <View className="w-20 h-20 rounded-full bg-blue-50 dark:bg-blue-900/30 items-center justify-center mb-4">
+          <View className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center mb-4">
             <Feather name="user" size={32} color={primaryColor} />
           </View>
           <Text className="text-xl font-bold text-slate-900 dark:text-white">
             {username}
           </Text>
+          {publicUid && publicUid !== "Loading..." && publicUid !== "N/A" ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={copyUidToClipboard}
+              className="flex-row items-center mt-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700"
+            >
+              <Text className="text-xs font-mono font-medium text-slate-600 dark:text-slate-300">
+                UID: {publicUid}
+              </Text>
+              <Feather
+                name={copiedUid ? "check" : "copy"}
+                size={12}
+                color={copiedUid ? "#10b981" : iconMuted}
+                className="ml-1.5"
+              />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View className="gap-y-2">
@@ -497,7 +535,7 @@ export default function AccountScreen() {
                   Theme
                 </Text>
               </View>
-              <Text className="text-xs font-bold text-blue-600 dark:text-blue-400 capitalize">
+              <Text className="text-xs font-bold text-slate-900 dark:text-white capitalize">
                 {themePref}
               </Text>
             </TouchableOpacity>
@@ -535,7 +573,7 @@ export default function AccountScreen() {
                   activeOpacity={0.7}
                   onPress={() => setIsKeyVisible(!isKeyVisible)}
                 >
-                  <Text className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                  <Text className="text-xs font-bold text-slate-900 dark:text-white">
                     {isKeyVisible ? "Hide" : "Reveal"}
                   </Text>
                 </TouchableOpacity>
@@ -694,9 +732,9 @@ export default function AccountScreen() {
               <TouchableOpacity
                 onPress={handleUpdate}
                 disabled={isUpdating}
-                className={`px-5 py-3 rounded-xl ${isUpdating ? "bg-blue-400 dark:bg-blue-500/50" : "bg-blue-600 dark:bg-blue-500"}`}
+                className={`px-5 py-3 rounded-xl ${isUpdating ? "bg-slate-400 dark:bg-slate-700" : "bg-slate-900 dark:bg-white"}`}
               >
-                <Text className="text-white font-bold">
+                <Text className={`${isUpdating ? "text-slate-200" : "text-white dark:text-slate-900"} font-bold`}>
                   {isUpdating ? "Saving..." : "Save Changes"}
                 </Text>
               </TouchableOpacity>
@@ -716,7 +754,7 @@ export default function AccountScreen() {
           className="flex-1 w-full h-full justify-center items-center bg-black/50 p-5"
         >
           <View className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 items-center">
-            <View className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 items-center justify-center mb-4">
+            <View className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center mb-4">
               <Feather
                 name={
                   popupConfig.title.includes("Failed") ||
@@ -744,9 +782,9 @@ export default function AccountScreen() {
             </Text>
             <TouchableOpacity
               onPress={handleClosePopup}
-              className="w-full py-4 rounded-xl bg-blue-600 dark:bg-blue-500 items-center"
+              className="w-full py-4 rounded-xl bg-slate-900 dark:bg-white items-center"
             >
-              <Text className="text-white font-bold text-base">Got it</Text>
+              <Text className="text-white dark:text-slate-900 font-bold text-base">Got it</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
