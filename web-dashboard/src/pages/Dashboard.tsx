@@ -160,23 +160,30 @@ export default function Dashboard() {
           setLoading(false);
         }
 
-        channel = supabase
-          .channel(`public:active_shows:${targetUserId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "active_shows",
-              filter: `user_id=eq.${targetUserId}`,
-            },
-            () => {
-              if (isMounted) {
-                fetchShows();
+        if (!isMounted) return;
+
+        try {
+          const channelTopic = `shows-${targetUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          channel = supabase
+            .channel(channelTopic)
+            .on(
+              "postgres_changes",
+              {
+                event: "*",
+                schema: "public",
+                table: "active_shows",
+                filter: `user_id=eq.${targetUserId}`,
+              },
+              () => {
+                if (isMounted) {
+                  fetchShows();
+                }
               }
-            }
-          )
-          .subscribe();
+            )
+            .subscribe();
+        } catch (subErr) {
+          console.warn("Realtime subscription failed to initialize:", subErr);
+        }
 
       } catch (err: unknown) {
         if (isMounted) {
@@ -200,6 +207,7 @@ export default function Dashboard() {
       isMounted = false;
       if (channel) {
         supabase.removeChannel(channel);
+        channel = null;
       }
     };
   }, [uid]);
