@@ -1,0 +1,296 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
+
+export interface AniListMediaData {
+  id: number;
+  englishTitle: string;
+  nativeTitle: string;
+  romajiTitle: string;
+  description: string;
+  episodes: number | null;
+  status: string;
+  airedPeriod: string;
+  studio: string;
+  source: string;
+  genres: string[];
+  coverImageUrl: string | null;
+}
+
+interface CacheEntry {
+  data: AniListMediaData;
+  lastVisited: number;
+}
+
+// 5 weeks in milliseconds: 5 weeks * 7 days * 24 hours * 60 mins * 60 secs * 1000 ms
+const CACHE_TTL_MS = 5 * 7 * 24 * 60 * 60 * 1000;
+const CACHE_KEY_PREFIX = "@anilist_cache_";
+const CACHE_INDEX_KEY = "@anilist_cache_index";
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+function formatAniListDate(dateObj: { year?: number; month?: number; day?: number } | null | undefined): string | null {
+  if (!dateObj || !dateObj.year) return null;
+  const month = dateObj.month ? MONTH_NAMES[dateObj.month - 1] : null;
+  const day = dateObj.day ? `${dateObj.day}, ` : "";
+  if (month) {
+    return `${month} ${day}${dateObj.year}`;
+  }
+  return `${dateObj.year}`;
+}
+
+function formatStatus(status: string | null | undefined): string {
+  if (!status) return "Unknown";
+  switch (status.toUpperCase()) {
+    case "FINISHED":
+      return "Finished Airing";
+    case "RELEASING":
+      return "Currently Airing";
+    case "NOT_YET_RELEASED":
+      return "Not Yet Aired";
+    case "CANCELLED":
+      return "Cancelled";
+    case "HIATUS":
+      return "On Hiatus";
+    default:
+      return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  }
+}
+
+function formatSource(source: string | null | undefined): string {
+  if (!source) return "Original";
+  return source
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function cleanDescription(rawText: string | null | undefined): string {
+  if (!rawText) return "No synopsis available.";
+  return rawText
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?[^>]+(>|$)/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Prunes expired entries from AsyncStorage
+ */
+async function pruneExpiredCache(): Promise<void> {
+  try {
+    const indexRaw = await AsyncStorage.getItem(CACHE_INDEX_KEY);
+    if (!indexRaw) return;
+
+    const ids: string[] = JSON.parse(indexRaw);
+    const now = Date.now();
+    const remainingIds: string[] = [];
+
+    for (const id of ids) {
+      const entryKey = `${CACHE_KEY_PREFIX}${id}`;
+      const entryRaw = await AsyncStorage.getItem(entryKey);
+      if (entryRaw) {
+        try {
+          const entry: CacheEntry = JSON.parse(entryRaw);
+          if (now - entry.lastVisited < CACHE_TTL_MS) {
+            remainingIds.push(id);
+          } else {
+            await AsyncStorage.removeItem(entryKey);
+          }
+        } catch {
+          await AsyncStorage.removeItem(entryKey);
+        }
+      }
+    }
+
+    await AsyncStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(remainingIds));
+  } catch (error) {
+    console.warn("Failed to prune expired AniList cache:", error);
+  }
+}
+
+async function recordCacheKey(id: string): Promise<void> {
+  try {
+    const indexRaw = await AsyncStorage.getItem(CACHE_INDEX_KEY);
+    const ids: string[] = indexRaw ? JSON.parse(indexRaw) : [];
+    if (!ids.includes(id)) {
+      ids.push(id);
+      await AsyncStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(ids));
+    }
+  } catch (error) {
+    console.warn("Failed to update cache index:", error);
+  }
+}
+
+export type FetchTitleDetailsResult =
+  | { success: true; data: AniListMediaData; isFromCache: boolean }
+  | { success: false; error: "offline" | "not_found" | "failed"; message: string };
+
+/**
+ * Loads AniList details for a show with a 5-week rolling offline cache.
+ * If cached, resets the 5-week expiration countdown.
+ */
+export async function getTitleDetails(
+  showId: string,
+  searchTitle: string,
+  forceRefresh = false
+): Promise<FetchTitleDetailsResult> {
+  const cacheKey = `${CACHE_KEY_PREFIX}${showId}`;
+
+  // 1. Check local cache first (offline-first)
+  if (!forceRefresh) {
+    try {
+      const cachedRaw = await AsyncStorage.getItem(cacheKey);
+      if (cachedRaw) {
+        const entry: CacheEntry = JSON.parse(cachedRaw);
+        const age = Date.now() - entry.lastVisited;
+
+        if (age < CACHE_TTL_MS) {
+          // Reset countdown on access (rolling TTL)
+          entry.lastVisited = Date.now();
+          AsyncStorage.setItem(cacheKey, JSON.stringify(entry)).catch(() => {});
+
+          return { success: true, data: entry.data, isFromCache: true };
+        } else {
+          // Cache expired
+          AsyncStorage.removeItem(cacheKey).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn("Error reading title cache:", e);
+    }
+  }
+
+  // 2. Cache miss or forced refresh: Check network
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) {
+    return {
+      success: false,
+      error: "offline",
+      message: "You're offline. Connect to the internet to load details from AniList.",
+    };
+  }
+
+  // 3. Fetch from AniList GraphQL
+  try {
+    const response = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        query: `
+          query ($search: String) {
+            Media(search: $search, type: ANIME) {
+              id
+              title {
+                english
+                native
+                romaji
+              }
+              description(asHtml: false)
+              episodes
+              status
+              startDate {
+                year
+                month
+                day
+              }
+              endDate {
+                year
+                month
+                day
+              }
+              studios(isMain: true) {
+                nodes {
+                  name
+                }
+              }
+              source
+              genres
+              coverImage {
+                large
+              }
+            }
+          }
+        `,
+        variables: { search: searchTitle },
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return {
+          success: false,
+          error: "not_found",
+          message: `Could not find anime matching "${searchTitle}" on AniList.`,
+        };
+      }
+      return {
+        success: false,
+        error: "failed",
+        message: `AniList API returned error status ${response.status}.`,
+      };
+    }
+
+    const json = await response.json();
+    const media = json?.data?.Media;
+
+    if (!media) {
+      return {
+        success: false,
+        error: "not_found",
+        message: `No details found for "${searchTitle}".`,
+      };
+    }
+
+    const startStr = formatAniListDate(media.startDate);
+    const endStr = formatAniListDate(media.endDate);
+    let airedPeriod = "Broadcast dates unavailable";
+    if (startStr && endStr) {
+      airedPeriod = `${startStr} to ${endStr}`;
+    } else if (startStr) {
+      airedPeriod = `${startStr} to Present`;
+    }
+
+    const studioName = media.studios?.nodes?.[0]?.name || "Independent / Unknown";
+
+    const data: AniListMediaData = {
+      id: media.id,
+      englishTitle: media.title?.english || media.title?.romaji || searchTitle,
+      nativeTitle: media.title?.native || "",
+      romajiTitle: media.title?.romaji || "",
+      description: cleanDescription(media.description),
+      episodes: media.episodes || null,
+      status: formatStatus(media.status),
+      airedPeriod,
+      studio: studioName,
+      source: formatSource(media.source),
+      genres: media.genres || [],
+      coverImageUrl: media.coverImage?.large || null,
+    };
+
+    // 4. Save to cache with rolling timestamp
+    const entry: CacheEntry = {
+      data,
+      lastVisited: Date.now(),
+    };
+
+    await AsyncStorage.setItem(cacheKey, JSON.stringify(entry));
+    recordCacheKey(showId);
+
+    // Prune expired cache in background
+    pruneExpiredCache().catch(() => {});
+
+    return { success: true, data, isFromCache: false };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: "failed",
+      message: err?.message || "Failed to communicate with AniList.",
+    };
+  }
+}

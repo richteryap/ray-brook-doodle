@@ -233,7 +233,7 @@ export default function LogsScreen() {
                   </View>
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={() => router.push(`/title/${item.id}`)}
+                    onPress={() => router.push({ pathname: "/title/[id]", params: { id: item.id, title: item.title } })}
                     className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-700 items-center justify-center"
                   >
                     <Feather

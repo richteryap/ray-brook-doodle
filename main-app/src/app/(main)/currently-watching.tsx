@@ -118,7 +118,11 @@ export default function CurrentlyWatchingScreen() {
       }
       setSelectedIds(next);
     } else {
-      router.push(`/title/${id}`);
+      const selectedItem = items.find((i) => i.id === id);
+      router.push({
+        pathname: "/title/[id]",
+        params: { id, title: selectedItem?.title || "" },
+      });
     }
   };
 
