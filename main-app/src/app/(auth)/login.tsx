@@ -16,6 +16,31 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 import * as Linking from 'expo-linking';
 
+function extractRecoveryTokens(rawUrl: string | null) {
+  if (!rawUrl) return null;
+  const hashIndex = rawUrl.indexOf("#");
+  const queryIndex = rawUrl.indexOf("?");
+
+  let paramString = "";
+  if (hashIndex !== -1) {
+    paramString = rawUrl.substring(hashIndex + 1);
+  } else if (queryIndex !== -1) {
+    paramString = rawUrl.substring(queryIndex + 1);
+  }
+
+  if (!paramString) return null;
+
+  const params = new URLSearchParams(paramString);
+  const type = params.get("type");
+  const access_token = params.get("access_token");
+  const refresh_token = params.get("refresh_token");
+
+  if (type === "recovery" && access_token && refresh_token) {
+    return { access_token, refresh_token };
+  }
+  return null;
+}
+
 export default function LoginScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -43,47 +68,48 @@ export default function LoginScreen() {
   const confirmPasswordRef = useRef<TextInput>(null);
   const isRecoveryRef = useRef(false);
 
+  const linkingUrl = Linking.useLinkingURL();
+
   useEffect(() => {
-  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.hash) {
-    const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-
-    if (params.get("type") === "recovery") {
-      isRecoveryRef.current = true;
-      setIsResettingPassword(true);
-
-      const access_token = params.get("access_token");
-      const refresh_token = params.get("refresh_token");
-
-      if (access_token && refresh_token) {
-        supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
-      }
-    }
-  }
-
-  const { data: authListener } = supabase.auth.onAuthStateChange(
-    (event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
+    async function handleIncomingUrl(urlStr: string | null) {
+      if (!urlStr) return;
+      const tokens = extractRecoveryTokens(urlStr);
+      if (tokens) {
         isRecoveryRef.current = true;
         setIsResettingPassword(true);
         setAuthError("");
-      } else if (event === "SIGNED_IN") {
-        setTimeout(() => {
-          if (!isRecoveryRef.current && session) {
-            router.replace("/dashboard");
-          }
-        }, 500);
+        await supabase.auth.setSession(tokens);
       }
-    },
-  );
+    }
 
-  return () => {
-    authListener.subscription.unsubscribe();
-  };
-}, []);
+    if (linkingUrl) {
+      handleIncomingUrl(linkingUrl);
+    } else if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.href) {
+      handleIncomingUrl(window.location.href);
+    }
+  }, [linkingUrl]);
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "PASSWORD_RECOVERY") {
+          isRecoveryRef.current = true;
+          setIsResettingPassword(true);
+          setAuthError("");
+        } else if (event === "SIGNED_IN") {
+          setTimeout(() => {
+            if (!isRecoveryRef.current && session) {
+              router.replace("/dashboard");
+            }
+          }, 500);
+        }
+      },
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const showPopup = (
     title: string,
