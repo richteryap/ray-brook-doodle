@@ -101,6 +101,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let isMounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function initDashboard() {
       setError(null);
@@ -137,19 +138,44 @@ export default function Dashboard() {
         const targetUserId = profileData[0].user_id;
         if (isMounted) setProfileName(profileData[0].display_name);
 
-        const { data: showsData, error: showsErr } = await supabase
-          .from("active_shows")
-          .select("id, show_name, latest_episode, total_episodes, updated_at")
-          .eq("user_id", targetUserId)
-          .eq("is_archived", false)
-          .order("updated_at", { ascending: false });
+        const fetchShows = async () => {
+          const { data: showsData, error: showsErr } = await supabase
+            .from("active_shows")
+            .select("id, show_name, latest_episode, total_episodes, updated_at")
+            .eq("user_id", targetUserId)
+            .eq("is_archived", false)
+            .order("updated_at", { ascending: false });
 
+          if (!showsErr && isMounted) {
+            setShows(showsData || []);
+          }
+          return { showsData, showsErr };
+        };
+
+        const { showsErr } = await fetchShows();
         if (showsErr) throw showsErr;
 
         if (isMounted) {
-          setShows(showsData || []);
           setLoading(false);
         }
+
+        channel = supabase
+          .channel(`public:active_shows:${targetUserId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "active_shows",
+              filter: `user_id=eq.${targetUserId}`,
+            },
+            () => {
+              if (isMounted) {
+                fetchShows();
+              }
+            }
+          )
+          .subscribe();
 
       } catch (err: unknown) {
         if (isMounted) {
@@ -169,7 +195,12 @@ export default function Dashboard() {
     }
 
     initDashboard();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, [uid]);
 
   const handleLogout = async () => {
