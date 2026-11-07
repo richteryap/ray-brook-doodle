@@ -2,7 +2,9 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Image,
   Modal,
   RefreshControl,
   ScrollView,
@@ -14,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSync } from "../../lib/SyncContext";
+import { searchAnimeTitles, AniListSearchResult } from "../../lib/anilist";
 
 interface MediaItem {
   id: string;
@@ -39,6 +42,8 @@ export default function CurrentlyWatchingScreen() {
     moveToLibrary,
     manualLogEpisode,
     undoManualLog,
+    manualLogNewTitle,
+    undoManualLogNewTitle,
   } = useSync();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sortOrder, setSortOrder] = useState<"Chronological" | "Alphabetical">("Chronological");
@@ -54,6 +59,17 @@ export default function CurrentlyWatchingScreen() {
   const [logTimeInput, setLogTimeInput] = useState("");
   const [isSubmittingLog, setIsSubmittingLog] = useState(false);
 
+  // Add Title Modal State
+  const [addTitleModalVisible, setAddTitleModalVisible] = useState(false);
+  const [titleSearchQuery, setTitleSearchQuery] = useState("");
+  const [isSearchingTitles, setIsSearchingTitles] = useState(false);
+  const [searchResults, setSearchResults] = useState<AniListSearchResult[]>([]);
+  const [selectedAnime, setSelectedAnime] = useState<AniListSearchResult | null>(null);
+  const [addTitleDateInput, setAddTitleDateInput] = useState("");
+  const [addTitleTimeInput, setAddTitleTimeInput] = useState("");
+  const [isSubmittingNewTitle, setIsSubmittingNewTitle] = useState(false);
+  const searchDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // 5-Second Undo Toast State
   const [undoToast, setUndoToast] = useState<{
     visible: boolean;
@@ -61,8 +77,9 @@ export default function CurrentlyWatchingScreen() {
     showTitle: string;
     episode: number;
     logId: string;
-    previousEpisode: number;
-    previousDate: string;
+    isNewShow?: boolean;
+    previousEpisode?: number;
+    previousDate?: string;
     secondsLeft: number;
   } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -160,21 +177,138 @@ export default function CurrentlyWatchingScreen() {
   };
 
   const handleUndo = async () => {
-    if (!undoToast || !undoManualLog) return;
+    if (!undoToast) return;
     if (undoTimerRef.current) {
       clearInterval(undoTimerRef.current);
       undoTimerRef.current = null;
     }
 
-    const { showId, previousEpisode, previousDate, logId } = undoToast;
+    const { showId, previousEpisode, previousDate, logId, isNewShow } = undoToast;
     setUndoToast(null);
 
-    await undoManualLog(showId, previousEpisode, previousDate, logId);
+    if (isNewShow && undoManualLogNewTitle) {
+      await undoManualLogNewTitle(showId, logId, true);
+    } else if (undoManualLog && previousEpisode !== undefined && previousDate !== undefined) {
+      await undoManualLog(showId, previousEpisode, previousDate, logId);
+    }
+  };
+
+  const openAddTitleModal = () => {
+    const dt = getDeviceCurrentDateTime();
+    setTitleSearchQuery("");
+    setSearchResults([]);
+    setSelectedAnime(null);
+    setAddTitleDateInput(dt.date);
+    setAddTitleTimeInput(dt.time);
+    setAddTitleModalVisible(true);
+  };
+
+  const handleTitleSearchChange = (text: string) => {
+    setTitleSearchQuery(text);
+    if (searchDebounceTimerRef.current) {
+      clearTimeout(searchDebounceTimerRef.current);
+    }
+
+    if (!text.trim()) {
+      setSearchResults([]);
+      setIsSearchingTitles(false);
+      return;
+    }
+
+    setIsSearchingTitles(true);
+    searchDebounceTimerRef.current = setTimeout(async () => {
+      try {
+        const results = await searchAnimeTitles(text);
+        setSearchResults(results);
+      } catch (err) {
+        console.warn("AniList search error:", err);
+      } finally {
+        setIsSearchingTitles(false);
+      }
+    }, 350);
+  };
+
+  const handleSelectAnime = (anime: AniListSearchResult) => {
+    setSelectedAnime(anime);
+    const dt = getDeviceCurrentDateTime();
+    setAddTitleDateInput(dt.date);
+    setAddTitleTimeInput(dt.time);
+  };
+
+  const handleSaveNewTitle = async () => {
+    if (!selectedAnime || !manualLogNewTitle) return;
+
+    let chosenDate: Date;
+    try {
+      const [year, month, day] = addTitleDateInput.split("-").map(Number);
+      const [hours, minutes] = addTitleTimeInput.split(":").map(Number);
+      if (
+        isNaN(year) ||
+        isNaN(month) ||
+        isNaN(day) ||
+        isNaN(hours) ||
+        isNaN(minutes)
+      ) {
+        throw new Error("Invalid format");
+      }
+      chosenDate = new Date(year, month - 1, day, hours, minutes);
+      if (isNaN(chosenDate.getTime())) {
+        throw new Error("Invalid date");
+      }
+    } catch {
+      Alert.alert(
+        "Invalid Date/Time",
+        "Please use YYYY-MM-DD for date and HH:mm (24-hour) for time, or tap 'Reset to Now'."
+      );
+      return;
+    }
+
+    setIsSubmittingNewTitle(true);
+    try {
+      const result = await manualLogNewTitle(
+        selectedAnime.title,
+        selectedAnime.episodes,
+        chosenDate
+      );
+
+      setAddTitleModalVisible(false);
+
+      if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+
+      setUndoToast({
+        visible: true,
+        showId: result.showId,
+        showTitle: selectedAnime.title,
+        episode: 1,
+        logId: result.logId,
+        isNewShow: result.isNewShow,
+        previousEpisode: result.previousEpisode,
+        previousDate: result.previousDate,
+        secondsLeft: 5,
+      });
+
+      let remaining = 5;
+      undoTimerRef.current = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+          undoTimerRef.current = null;
+          setUndoToast(null);
+        } else {
+          setUndoToast((prev) => (prev ? { ...prev, secondsLeft: remaining } : null));
+        }
+      }, 1000);
+    } catch (err: any) {
+      Alert.alert("Error logging title", err?.message || "Failed to add title.");
+    } finally {
+      setIsSubmittingNewTitle(false);
+    }
   };
 
   useEffect(() => {
     return () => {
       if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+      if (searchDebounceTimerRef.current) clearTimeout(searchDebounceTimerRef.current);
     };
   }, []);
 
@@ -303,17 +437,30 @@ export default function CurrentlyWatchingScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={syncWithCloud}
-          disabled={syncStatus === "syncing" || isSelectionMode}
-          className="w-8 h-8 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
-        >
-          {syncStatus === "syncing" && <Feather name="refresh-cw" size={14} color={iconMuted} />}
-          {syncStatus === "synced" && <Ionicons name="cloud-done-outline" size={16} color={primaryColor} />}
-          {syncStatus === "offline" && <Ionicons name="cloud-offline-outline" size={16} color="#ef4444" />}
-          {syncStatus === "outdated" && <Ionicons name="cloud-download-outline" size={16} color="#f59e0b" />}
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-x-2">
+          {!isSelectionMode && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={openAddTitleModal}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-500 active:bg-emerald-600 flex-row items-center shadow-xs"
+            >
+              <Feather name="plus" size={13} color="#ffffff" />
+              <Text className="ml-1 text-xs font-bold text-white">Add Title</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={syncWithCloud}
+            disabled={syncStatus === "syncing" || isSelectionMode}
+            className="w-8 h-8 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600"
+          >
+            {syncStatus === "syncing" && <Feather name="refresh-cw" size={14} color={iconMuted} />}
+            {syncStatus === "synced" && <Ionicons name="cloud-done-outline" size={16} color={primaryColor} />}
+            {syncStatus === "offline" && <Ionicons name="cloud-offline-outline" size={16} color="#ef4444" />}
+            {syncStatus === "outdated" && <Ionicons name="cloud-download-outline" size={16} color="#f59e0b" />}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Bulk Action Controls */}
@@ -679,6 +826,314 @@ export default function CurrentlyWatchingScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Title Search Modal */}
+      <Modal
+        visible={addTitleModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAddTitleModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/60 items-center justify-center px-4 py-8">
+          <View className="w-full max-w-sm h-[520px] max-h-[85%] bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-xl flex-col">
+            {/* Modal Header */}
+            <View className="flex-row items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-700 mb-3">
+              <View className="flex-row items-center flex-1 pr-2">
+                <Ionicons name="tv" size={20} color="#10B981" />
+                <Text
+                  className="text-base font-bold text-slate-900 dark:text-white ml-2 flex-1"
+                  numberOfLines={1}
+                >
+                  {selectedAnime ? "Log New Title" : "Search AniList Title"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setAddTitleModalVisible(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center"
+              >
+                <Feather name="x" size={14} color={iconMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* STEP 1: Search & Select Anime */}
+            {!selectedAnime ? (
+              <View className="flex-1">
+                {/* Search Input */}
+                <View className="flex-row items-center bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 mb-3">
+                  <Feather name="search" size={16} color={iconMuted} />
+                  <TextInput
+                    value={titleSearchQuery}
+                    onChangeText={handleTitleSearchChange}
+                    placeholder="Search anime title..."
+                    placeholderTextColor={iconMuted}
+                    autoFocus
+                    className="flex-1 ml-2 text-sm text-slate-900 dark:text-white"
+                  />
+                  {titleSearchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => handleTitleSearchChange("")}>
+                      <Feather name="x" size={16} color={iconMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Search Results / Loading / Empty */}
+                {isSearchingTitles ? (
+                  <View className="py-10 items-center justify-center">
+                    <ActivityIndicator size="small" color="#10B981" />
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      Searching AniList...
+                    </Text>
+                  </View>
+                ) : searchResults.length > 0 ? (
+                  <ScrollView
+                    className="flex-1"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 8 }}
+                  >
+                    <View className="gap-y-2">
+                      {searchResults.map((anime) => {
+                        const isAddable = anime.isAddable;
+
+                        return (
+                          <TouchableOpacity
+                            key={anime.id}
+                            activeOpacity={isAddable ? 0.7 : 1}
+                            disabled={!isAddable}
+                            onPress={() => isAddable && handleSelectAnime(anime)}
+                            className={`flex-row p-2.5 rounded-xl border ${
+                              isAddable
+                                ? "bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700"
+                                : "bg-slate-100/50 dark:bg-slate-900/30 border-slate-200/50 dark:border-slate-800 opacity-60"
+                            } items-center`}
+                          >
+                            {anime.coverImageUrl ? (
+                              <Image
+                                source={{ uri: anime.coverImageUrl }}
+                                className="w-11 h-14 rounded-md bg-slate-200 dark:bg-slate-700"
+                                resizeMode="cover"
+                              />
+                            ) : (
+                              <View className="w-11 h-14 rounded-md bg-slate-200 dark:bg-slate-700 items-center justify-center">
+                                <Feather name="tv" size={16} color={iconMuted} />
+                              </View>
+                            )}
+
+                            <View className="flex-1 ml-3 pr-2">
+                              <Text
+                                className={`text-xs font-bold ${
+                                  isAddable
+                                    ? "text-slate-900 dark:text-white"
+                                    : "text-slate-500 dark:text-slate-400"
+                                }`}
+                                numberOfLines={2}
+                              >
+                                {anime.title}
+                              </Text>
+                              {anime.romajiTitle && anime.romajiTitle !== anime.title ? (
+                                <Text
+                                  className="text-[10px] text-slate-400 dark:text-slate-500 italic mt-0.5"
+                                  numberOfLines={1}
+                                >
+                                  {anime.romajiTitle}
+                                </Text>
+                              ) : null}
+
+                              {/* Badges Row */}
+                              <View className="flex-row items-center mt-1.5 flex-wrap gap-1.5">
+                                {/* Airing Status Badge */}
+                                {anime.status === "Currently Airing" && (
+                                  <View className="bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60">
+                                    <Text className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
+                                      Airing
+                                    </Text>
+                                  </View>
+                                )}
+                                {anime.status === "Finished Airing" && (
+                                  <View className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                    <Text className="text-[9px] font-bold text-slate-600 dark:text-slate-300">
+                                      Finished
+                                    </Text>
+                                  </View>
+                                )}
+                                {anime.status === "On Hiatus" && (
+                                  <View className="bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/60">
+                                    <Text className="text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                                      Hiatus
+                                    </Text>
+                                  </View>
+                                )}
+                                {!isAddable && (
+                                  <View className="bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800/60 flex-row items-center">
+                                    <Feather name="lock" size={8} color="#e11d48" />
+                                    <Text className="text-[9px] font-bold text-rose-700 dark:text-rose-400 ml-0.5">
+                                      {anime.status}
+                                    </Text>
+                                  </View>
+                                )}
+
+                                {anime.format && (
+                                  <Text className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">
+                                    {anime.format}
+                                  </Text>
+                                )}
+                                {anime.seasonYear && (
+                                  <Text className="text-[10px] text-slate-400 dark:text-slate-500">
+                                    {anime.seasonYear}
+                                  </Text>
+                                )}
+                                {anime.episodes ? (
+                                  <Text className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                                    {anime.episodes} eps
+                                  </Text>
+                                ) : null}
+                              </View>
+                            </View>
+
+                            {isAddable ? (
+                              <Feather name="chevron-right" size={16} color={iconMuted} />
+                            ) : (
+                              <View className="bg-slate-200/60 dark:bg-slate-700/60 px-1.5 py-1 rounded">
+                                <Text className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
+                                  Not Aired
+                                </Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                ) : titleSearchQuery.trim().length > 1 ? (
+                  <View className="py-10 items-center justify-center">
+                    <Feather name="frown" size={24} color={iconMuted} />
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
+                      No titles found for "{titleSearchQuery}".{"\n"}Try another spelling.
+                    </Text>
+                  </View>
+                ) : (
+                  <View className="py-10 items-center justify-center">
+                    <Feather name="search" size={24} color={iconMuted} />
+                    <Text className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">
+                      Type an anime title to search on AniList.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              /* STEP 2: Review & Confirm Genesis */
+              <ScrollView
+                className="flex-1"
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 16 }}
+              >
+                {/* Warning Banner */}
+                <View className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg p-3 mb-3">
+                  <View className="flex-row items-center mb-1">
+                    <Feather name="alert-triangle" size={14} color="#d97706" />
+                    <Text className="text-xs font-bold text-amber-800 dark:text-amber-300 ml-1.5">
+                      Notice
+                    </Text>
+                  </View>
+                  <Text className="text-xs text-amber-700 dark:text-amber-400">
+                    This action cannot be undone after the 5-second popup disappears.
+                  </Text>
+                </View>
+
+                {/* Selected Anime Card */}
+                <View className="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 border border-slate-200 dark:border-slate-700 mb-3 flex-row items-center">
+                  {selectedAnime.coverImageUrl ? (
+                    <Image
+                      source={{ uri: selectedAnime.coverImageUrl }}
+                      className="w-12 h-16 rounded-md bg-slate-200 dark:bg-slate-700 mr-3"
+                      resizeMode="cover"
+                    />
+                  ) : null}
+                  <View className="flex-1">
+                    <Text
+                      className="text-xs font-bold text-slate-900 dark:text-white"
+                      numberOfLines={2}
+                    >
+                      {selectedAnime.title}
+                    </Text>
+                    <Text className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-1">
+                      Starting at Episode 1
+                      {selectedAnime.episodes ? ` of ${selectedAnime.episodes}` : ""}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Date & Time Fields */}
+                <View className="gap-y-2.5 mb-4">
+                  <View>
+                    <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                      Date (YYYY-MM-DD)
+                    </Text>
+                    <TextInput
+                      value={addTitleDateInput}
+                      onChangeText={setAddTitleDateInput}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={iconMuted}
+                      className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white font-mono"
+                      keyboardType="numbers-and-punctuation"
+                    />
+                  </View>
+
+                  <View>
+                    <View className="flex-row items-center justify-between mb-1">
+                      <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        Time (HH:mm - 24hr)
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          const dt = getDeviceCurrentDateTime();
+                          setAddTitleDateInput(dt.date);
+                          setAddTitleTimeInput(dt.time);
+                        }}
+                      >
+                        <Text className="text-xs font-bold text-slate-900 dark:text-white underline">
+                          Reset to Now
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <TextInput
+                      value={addTitleTimeInput}
+                      onChangeText={setAddTitleTimeInput}
+                      placeholder="HH:mm"
+                      placeholderTextColor={iconMuted}
+                      className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white font-mono"
+                      keyboardType="numbers-and-punctuation"
+                    />
+                  </View>
+                </View>
+
+                {/* Actions */}
+                <View className="flex-row items-center gap-x-2 pt-1 pb-2">
+                  <TouchableOpacity
+                    onPress={() => setSelectedAnime(null)}
+                    disabled={isSubmittingNewTitle}
+                    className="flex-1 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 items-center justify-center"
+                  >
+                    <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Back
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleSaveNewTitle}
+                    disabled={isSubmittingNewTitle}
+                    className="flex-1 py-2.5 rounded-lg bg-emerald-500 active:bg-emerald-600 items-center justify-center shadow-sm"
+                  >
+                    <Text className="text-sm font-bold text-white">
+                      {isSubmittingNewTitle ? "Adding..." : "Log Ep 1"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>

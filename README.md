@@ -34,7 +34,7 @@ ray-brook/
 
 - Built with **React Native**, **Expo Router**, and **NativeWind (Tailwind CSS)**.
 - Real-time synchronization and offline-first storage powered by **Supabase** and **AsyncStorage**.
-- **Manual Logging (+1)**: Instant 1-tap episode increment with editable timestamp and a 5-second ephemeral undo toast.
+- **Manual Logging & Title Tracking**: Instant 1-tap episode increment (+1) and "+ Add Title" manual series tracking (with debounced AniList search & airing status gating), complete with editable timestamps and 5-second undo rollback.
 - **Anime Details & 5-Week Cache**: On-demand AniList GraphQL metadata (synopsis, status, studio, genres, broadcast schedule) with a rolling 5-week offline cache.
 - **Watchlist & Library Management**: Real-time title search filtering, bulk-drop, and archive-to-Library for completed shows.
 - **Chronological Logs**: Full audit trail of watched episodes with exact device/server timestamps.

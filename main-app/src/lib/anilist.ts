@@ -294,3 +294,87 @@ export async function getTitleDetails(
     };
   }
 }
+
+export interface AniListSearchResult {
+  id: number;
+  title: string;
+  romajiTitle: string;
+  nativeTitle: string;
+  coverImageUrl: string | null;
+  episodes: number | null;
+  format: string | null;
+  seasonYear: number | null;
+  status: string;
+  rawStatus: string;
+  isAddable: boolean;
+}
+
+export async function searchAnimeTitles(query: string): Promise<AniListSearchResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  try {
+    const response = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        query: `
+          query ($search: String) {
+            Page(page: 1, perPage: 8) {
+              media(search: $search, type: ANIME, status_in: [RELEASING, FINISHED, HIATUS], sort: SEARCH_MATCH) {
+                id
+                title {
+                  english
+                  romaji
+                  native
+                }
+                coverImage {
+                  medium
+                  large
+                }
+                episodes
+                format
+                seasonYear
+                status
+              }
+            }
+          }
+        `,
+        variables: { search: trimmed },
+      }),
+    });
+
+    if (!response.ok) return [];
+
+    const json = await response.json();
+    const mediaList = json?.data?.Page?.media || [];
+
+    return mediaList.map((m: any) => {
+      const rawStatus = (m.status || "").toUpperCase();
+      const isAddable =
+        rawStatus === "RELEASING" ||
+        rawStatus === "FINISHED" ||
+        rawStatus === "HIATUS";
+
+      return {
+        id: m.id,
+        title: m.title?.english || m.title?.romaji || trimmed,
+        romajiTitle: m.title?.romaji || "",
+        nativeTitle: m.title?.native || "",
+        coverImageUrl: m.coverImage?.medium || m.coverImage?.large || null,
+        episodes: m.episodes || null,
+        format: m.format || null,
+        seasonYear: m.seasonYear || null,
+        status: formatStatus(m.status),
+        rawStatus,
+        isAddable,
+      };
+    });
+  } catch (err) {
+    console.warn("AniList search error:", err);
+    return [];
+  }
+}

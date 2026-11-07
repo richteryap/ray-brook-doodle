@@ -268,7 +268,7 @@ export default function HowToUseScreen() {
                   Currently Watching & Manual Logging
                 </Text>
                 <Text className="text-xs leading-4 text-slate-500 dark:text-slate-400 mt-0.5">
-                  Track in-progress shows, sort chronologically or alphabetically, and tap any title for full AniList details. Tap the emerald <Text className="font-bold text-emerald-600 dark:text-emerald-400">+1</Text> button for instant episode logging with editable time and a 5-second undo rollback window. Long-press cards for multi-select bulk actions to Drop or move to Library.
+                  Track in-progress shows, sort chronologically or alphabetically, and tap any title for full AniList details. Tap the <Text className="font-bold text-emerald-600 dark:text-emerald-400">+ Add Title</Text> button to search AniList and track a new series from Episode 1 (with automatic airing status verification). Tap the emerald <Text className="font-bold text-emerald-600 dark:text-emerald-400">+1</Text> button on any card for instant episode logging with editable time and a 5-second undo rollback window. Long-press cards for multi-select bulk actions to Drop or move to Library.
                 </Text>
               </View>
             </View>
