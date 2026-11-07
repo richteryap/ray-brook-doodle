@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { AppState } from "react-native";
 import { supabase } from "./supabase";
+import { normalizeTitle } from "./anilist";
 
 export type SyncStatus = "synced" | "syncing" | "offline" | "outdated";
 
@@ -345,7 +346,18 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       .select()
       .single();
 
-    if (logErr) throw logErr;
+    if (logErr) {
+      if (
+        logErr.code === "23505" ||
+        logErr.message?.includes("unique_user_show_episode") ||
+        logErr.message?.includes("duplicate key")
+      ) {
+        throw new Error(
+          `Episode ${newEpisode} of "${showName}" has already been logged in your history.`
+        );
+      }
+      throw logErr;
+    }
 
     const logId = logData?.id || "temp-" + Date.now();
 
@@ -451,7 +463,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     if (!session?.user) throw new Error("User not authenticated");
 
     const existingShow = activeShows.find(
-      (s) => s.show_name.toLowerCase().trim() === title.toLowerCase().trim()
+      (s) => normalizeTitle(s.show_name) === normalizeTitle(title)
     );
 
     let showId = "";
@@ -508,7 +520,18 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       .select()
       .single();
 
-    if (logErr) throw logErr;
+    if (logErr) {
+      if (
+        logErr.code === "23505" ||
+        logErr.message?.includes("unique_user_show_episode") ||
+        logErr.message?.includes("duplicate key")
+      ) {
+        throw new Error(
+          `Episode 1 of "${title}" has already been logged. This series is already in your watch history.`
+        );
+      }
+      throw logErr;
+    }
 
     const logId = logData?.id || "temp-" + Date.now();
 

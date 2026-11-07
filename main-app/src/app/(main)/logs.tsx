@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSync } from "../../lib/SyncContext";
+import { normalizeTitle } from "../../lib/anilist";
 
 interface MediaItem {
   id: string;
@@ -69,7 +70,7 @@ export default function LogsScreen() {
   }, [logs]);
 
   const filteredItems = items.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    normalizeTitle(item.title).includes(normalizeTitle(searchQuery))
   );
 
   const sortedItems = [...filteredItems].sort((a, b) => {

@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSync } from "../../lib/SyncContext";
-import { getShowFormats } from "../../lib/anilist";
+import { getShowFormats, normalizeTitle } from "../../lib/anilist";
 
 interface LibraryItem {
   id: string;
@@ -55,7 +55,7 @@ export default function LibraryScreen() {
 
   const groupedData = useMemo(() => {
     const filtered = items.filter((item) =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase())
+      normalizeTitle(item.title).includes(normalizeTitle(searchQuery))
     );
 
     const sorted = [...filtered].sort((a, b) => a.title.localeCompare(b.title));

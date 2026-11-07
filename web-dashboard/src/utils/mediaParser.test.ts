@@ -1,10 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { parseMediaTitle } from './mediaParser';
+import { parseMediaTitle, normalizeTitle } from './mediaParser';
 
 describe('parseMediaTitle', () => {
   it('parses anime title and episode number correctly', () => {
     const result = parseMediaTitle('Frieren: Beyond Journey\'s End Episode 28');
     expect(result.title).toBe('Frieren: Beyond Journey\'s End');
+    expect(result.episode).toBe(28);
+  });
+
+  it('normalizes curly apostrophes to ASCII apostrophes in scraped titles', () => {
+    const result = parseMediaTitle('Frieren: Beyond Journey’s End Episode 28');
+    expect(result.title).toBe("Frieren: Beyond Journey's End");
     expect(result.episode).toBe(28);
   });
 
@@ -18,5 +24,18 @@ describe('parseMediaTitle', () => {
     const result = parseMediaTitle('Spirited Away The Movie');
     expect(result.title).toBe('Spirited Away The Movie');
     expect(result.episode).toBe(0);
+  });
+});
+
+describe('normalizeTitle', () => {
+  it('treats curly apostrophe and ASCII apostrophe as identical', () => {
+    const ascii = normalizeTitle("JoJo's Bizarre Adventure");
+    const curly = normalizeTitle("JoJo’s Bizarre Adventure");
+    expect(ascii).toBe(curly);
+  });
+
+  it('normalizes accents, spaces, and case consistently', () => {
+    expect(normalizeTitle("  Frieren: Beyond Journey’s End  ")).toBe("frieren: beyond journey's end");
+    expect(normalizeTitle("Komi Can`t Communicate")).toBe("komi can't communicate");
   });
 });

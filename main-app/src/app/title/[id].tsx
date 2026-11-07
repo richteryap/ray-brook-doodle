@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AniListMediaData, getTitleDetails } from "../../lib/anilist";
+import { AniListMediaData, getTitleDetails, normalizeTitle } from "../../lib/anilist";
 import { useSync } from "../../lib/SyncContext";
 
 export default function TitleDetailsScreen() {
@@ -230,8 +230,8 @@ export default function TitleDetailsScreen() {
                     {animeData.englishTitle}
                   </Text>
                   {animeData.romajiTitle &&
-                  animeData.romajiTitle.trim().toLowerCase() !==
-                    animeData.englishTitle.trim().toLowerCase() ? (
+                  normalizeTitle(animeData.romajiTitle) !==
+                    normalizeTitle(animeData.englishTitle) ? (
                     <Text
                       className="text-xs text-slate-600 dark:text-slate-300 font-medium italic mb-0.5"
                       numberOfLines={2}

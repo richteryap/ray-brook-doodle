@@ -15,11 +15,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import NetInfo from "@react-native-community/netinfo";
 import { useSync } from "../../lib/SyncContext";
 import {
   searchAnimeTitles,
   AniListSearchResult,
   checkEpisodeAired,
+  normalizeTitle,
 } from "../../lib/anilist";
 
 interface MediaItem {
@@ -103,6 +105,16 @@ export default function CurrentlyWatchingScreen() {
   };
 
   const openManualLog = async (item: MediaItem) => {
+    // 0. Network check
+    const net = await NetInfo.fetch();
+    if (!net.isConnected) {
+      Alert.alert(
+        "No Internet Connection",
+        "An active internet connection is required to verify the episode release schedule before logging."
+      );
+      return;
+    }
+
     const nextEp = item.currentEpisode + 1;
 
     // 1. Local fast check: If already completed
@@ -140,6 +152,15 @@ export default function CurrentlyWatchingScreen() {
 
   const handleSaveLog = async () => {
     if (!loggingShow || !manualLogEpisode) return;
+
+    const net = await NetInfo.fetch();
+    if (!net.isConnected) {
+      Alert.alert(
+        "No Internet Connection",
+        "Please connect to the internet to save your episode log."
+      );
+      return;
+    }
 
     let chosenDate: Date;
     try {
@@ -202,7 +223,19 @@ export default function CurrentlyWatchingScreen() {
         }
       }, 1000);
     } catch (err: any) {
-      Alert.alert("Error logging episode", err?.message || "Failed to log episode.");
+      const msg = err?.message || "Failed to log episode.";
+      if (
+        msg.includes("unique_user_show_episode") ||
+        msg.includes("already been logged") ||
+        msg.includes("duplicate key")
+      ) {
+        Alert.alert(
+          "Already Logged",
+          `Episode ${targetEpisode} of "${loggingShow.title}" has already been logged in your history.`
+        );
+      } else {
+        Alert.alert("Error Logging Episode", msg);
+      }
     } finally {
       setIsSubmittingLog(false);
     }
@@ -225,7 +258,16 @@ export default function CurrentlyWatchingScreen() {
     }
   };
 
-  const openAddTitleModal = () => {
+  const openAddTitleModal = async () => {
+    const net = await NetInfo.fetch();
+    if (!net.isConnected) {
+      Alert.alert(
+        "No Internet Connection",
+        "An active internet connection is required to search AniList and track new titles."
+      );
+      return;
+    }
+
     const dt = getDeviceCurrentDateTime();
     setTitleSearchQuery("");
     setSearchResults([]);
@@ -261,6 +303,18 @@ export default function CurrentlyWatchingScreen() {
   };
 
   const handleSelectAnime = (anime: AniListSearchResult) => {
+    // Check if anime is already in Currently Watching
+    const isAlreadyWatching = activeShows.some(
+      (s) => normalizeTitle(s.show_name) === normalizeTitle(anime.title)
+    );
+    if (isAlreadyWatching) {
+      Alert.alert(
+        "Already in Watchlist",
+        `"${anime.title}" is already in your Currently Watching list.`
+      );
+      return;
+    }
+
     setSelectedAnime(anime);
     const dt = getDeviceCurrentDateTime();
     setAddTitleDateInput(dt.date);
@@ -269,6 +323,15 @@ export default function CurrentlyWatchingScreen() {
 
   const handleSaveNewTitle = async () => {
     if (!selectedAnime || !manualLogNewTitle) return;
+
+    const net = await NetInfo.fetch();
+    if (!net.isConnected) {
+      Alert.alert(
+        "No Internet Connection",
+        "Please connect to the internet to log this title."
+      );
+      return;
+    }
 
     let chosenDate: Date;
     try {
@@ -331,7 +394,19 @@ export default function CurrentlyWatchingScreen() {
         }
       }, 1000);
     } catch (err: any) {
-      Alert.alert("Error logging title", err?.message || "Failed to add title.");
+      const msg = err?.message || "Failed to add title.";
+      if (
+        msg.includes("unique_user_show_episode") ||
+        msg.includes("already been logged") ||
+        msg.includes("duplicate key")
+      ) {
+        Alert.alert(
+          "Already Logged",
+          `Episode 1 of "${selectedAnime.title}" has already been logged in your history.`
+        );
+      } else {
+        Alert.alert("Unable to Add Title", msg);
+      }
     } finally {
       setIsSubmittingNewTitle(false);
     }
@@ -398,7 +473,7 @@ export default function CurrentlyWatchingScreen() {
   }, [activeShows]);
 
   const filteredItems = items.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    normalizeTitle(item.title).includes(normalizeTitle(searchQuery))
   );
 
   const sortedItems = [...filteredItems].sort((a, b) => {

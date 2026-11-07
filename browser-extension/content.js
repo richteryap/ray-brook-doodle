@@ -26,7 +26,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 return;
             }
 
-            let rawTitle = htmlElement.innerText.replace(/"/g, '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+            let rawTitle = htmlElement.innerText
+                .replace(/"/g, '')
+                .replace(/[\u2018\u2019`´']/g, "'")
+                .replace(/\n/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
             let showName = rawTitle;
             let episode = 0;
 
@@ -40,17 +45,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
             let totalEpisodes = null;
             try {
-                let aniResponse = await fetch('https://graphql.anilist.co', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify({
-                        query: 'query($search: String){ Media(search: $search, type: ANIME){ episodes } }',
-                        variables: { search: showName }
-                    })
-                });
-                let aniData = await aniResponse.json();
-                if(aniData?.data?.Media?.episodes) {
-                    totalEpisodes = aniData.data.Media.episodes;
+                const fetchAniListEpisodes = async (q) => {
+                    let aniResponse = await fetch('https://graphql.anilist.co', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({
+                            query: 'query($search: String){ Page(page: 1, perPage: 6){ media(search: $search, type: ANIME, sort: SEARCH_MATCH){ episodes } } }',
+                            variables: { search: q }
+                        })
+                    });
+                    let aniData = await aniResponse.json();
+                    return aniData?.data?.Page?.media?.[0]?.episodes || null;
+                };
+
+                totalEpisodes = await fetchAniListEpisodes(showName);
+                if (!totalEpisodes && /['\u2018\u2019`´]/.test(showName)) {
+                    totalEpisodes = await fetchAniListEpisodes(showName.replace(/'/g, '’'));
+                }
+
+                if(totalEpisodes) {
                     console.log("AniList found total episodes:", totalEpisodes);
                 }
             } catch(e) {

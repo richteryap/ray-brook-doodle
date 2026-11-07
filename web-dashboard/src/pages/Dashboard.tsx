@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useFavorites } from "../hooks/useFavorites";
 import { getSeasonFromDate } from "../utils/season";
+import { normalizeTitle } from "../utils/mediaParser";
 
 interface Show {
   id: string;
@@ -239,7 +240,7 @@ export default function Dashboard() {
   };
 
   const filteredShows = shows.filter((show) =>
-    show.show_name.toLowerCase().includes(titleFilter.toLowerCase().trim())
+    normalizeTitle(show.show_name).includes(normalizeTitle(titleFilter))
   );
 
   const sortedShows = [...filteredShows].sort((a, b) => {

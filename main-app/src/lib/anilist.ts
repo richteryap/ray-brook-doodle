@@ -72,6 +72,21 @@ function formatSource(source: string | null | undefined): string {
     .join(" ");
 }
 
+/**
+ * Standardizes title strings for consistent matching across AniList and scraped sites.
+ * Normalizes unicode single quotes (’ ‘), grave accents (`), acute accents (´) to standard ASCII apostrophe ('),
+ * collapses multiple spaces, and converts to lowercase.
+ */
+export function normalizeTitle(title: string | null | undefined): string {
+  if (!title) return "";
+  return title
+    .toLowerCase()
+    .replace(/[\u2018\u2019`´']/g, "'")
+    .replace(/[\u201C\u201D"]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function formatFormat(rawFormat: string | null | undefined): string | null {
   if (!rawFormat) return null;
   switch (rawFormat.toUpperCase()) {
@@ -222,82 +237,95 @@ export async function getTitleDetails(
     };
   }
 
-  // 3. Fetch from AniList GraphQL
+  // 3. Fetch from AniList GraphQL (quote-resilient)
   try {
-    const response = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        query: `
-          query ($search: String) {
-            Media(search: $search, type: ANIME) {
-              id
-              title {
-                english
-                native
-                romaji
-              }
-              description(asHtml: false)
-              episodes
-              status
-              format
-              season
-              seasonYear
-              startDate {
-                year
-                month
-                day
-              }
-              endDate {
-                year
-                month
-                day
-              }
-              studios(isMain: true) {
-                nodes {
-                  name
+    const fetchAniListMedia = async (q: string) => {
+      const response = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          query: `
+            query ($search: String) {
+              Page(page: 1, perPage: 8) {
+                media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                  id
+                  title {
+                    english
+                    native
+                    romaji
+                  }
+                  description(asHtml: false)
+                  episodes
+                  status
+                  format
+                  season
+                  seasonYear
+                  startDate {
+                    year
+                    month
+                    day
+                  }
+                  endDate {
+                    year
+                    month
+                    day
+                  }
+                  studios(isMain: true) {
+                    nodes {
+                      name
+                    }
+                  }
+                  source
+                  genres
+                  coverImage {
+                    large
+                  }
                 }
               }
-              source
-              genres
-              coverImage {
-                large
-              }
             }
-          }
-        `,
-        variables: { search: searchTitle },
-      }),
-    });
+          `,
+          variables: { search: q },
+        }),
+      });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return {
-          success: false,
-          error: "not_found",
-          message: `Could not find anime matching "${searchTitle}" on AniList.`,
-        };
+      if (!response.ok) return null;
+      const json = await response.json();
+      return (json?.data?.Page?.media as any[]) || [];
+    };
+
+    // 3a. Try query with standard ASCII apostrophes
+    const asciiQuery = searchTitle.replace(/[\u2018\u2019`´]/g, "'").trim();
+    let mediaList = await fetchAniListMedia(asciiQuery);
+
+    // 3b. Fallback: If 0 results and title had quotes, try with curly apostrophes
+    if ((!mediaList || mediaList.length === 0) && /['\u2018\u2019`´]/.test(searchTitle)) {
+      const curlyQuery = searchTitle.replace(/['\u2018\u2019`´]/g, "’").trim();
+      const fallbackList = await fetchAniListMedia(curlyQuery);
+      if (fallbackList && fallbackList.length > 0) {
+        mediaList = fallbackList;
       }
-      return {
-        success: false,
-        error: "failed",
-        message: `AniList API returned error status ${response.status}.`,
-      };
     }
 
-    const json = await response.json();
-    const media = json?.data?.Media;
-
-    if (!media) {
+    if (!mediaList || mediaList.length === 0) {
       return {
         success: false,
         error: "not_found",
-        message: `No details found for "${searchTitle}".`,
+        message: `Could not find anime matching "${searchTitle}" on AniList.`,
       };
     }
+
+    // 3c. Match canonical media item using normalized titles
+    const targetNorm = normalizeTitle(searchTitle);
+    const exact = mediaList.find(
+      (m: any) =>
+        normalizeTitle(m.title?.english) === targetNorm ||
+        normalizeTitle(m.title?.romaji) === targetNorm ||
+        normalizeTitle(m.title?.native) === targetNorm
+    );
+    const media = exact || mediaList[0];
 
     const startStr = formatAniListDate(media.startDate);
     const endStr = formatAniListDate(media.endDate);
@@ -376,44 +404,59 @@ export async function searchAnimeTitles(query: string): Promise<AniListSearchRes
   const trimmed = query.trim();
   if (!trimmed) return [];
 
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) return [];
+
   try {
-    const response = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        query: `
-          query ($search: String) {
-            Page(page: 1, perPage: 8) {
-              media(search: $search, type: ANIME, status_in: [RELEASING, FINISHED, HIATUS], sort: SEARCH_MATCH) {
-                id
-                title {
-                  english
-                  romaji
-                  native
+    const fetchPage = async (q: string) => {
+      const response = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          query: `
+            query ($search: String) {
+              Page(page: 1, perPage: 8) {
+                media(search: $search, type: ANIME, status_in: [RELEASING, FINISHED, HIATUS], sort: SEARCH_MATCH) {
+                  id
+                  title {
+                    english
+                    romaji
+                    native
+                  }
+                  coverImage {
+                    medium
+                    large
+                  }
+                  episodes
+                  format
+                  seasonYear
+                  status
                 }
-                coverImage {
-                  medium
-                  large
-                }
-                episodes
-                format
-                seasonYear
-                status
               }
             }
-          }
-        `,
-        variables: { search: trimmed },
-      }),
-    });
+          `,
+          variables: { search: q },
+        }),
+      });
 
-    if (!response.ok) return [];
+      if (!response.ok) return [];
+      const json = await response.json();
+      return (json?.data?.Page?.media as any[]) || [];
+    };
 
-    const json = await response.json();
-    const mediaList = json?.data?.Page?.media || [];
+    const asciiQuery = trimmed.replace(/[\u2018\u2019`´]/g, "'").trim();
+    let mediaList = await fetchPage(asciiQuery);
+
+    if (mediaList.length === 0 && /['\u2018\u2019`´]/.test(trimmed)) {
+      const curlyQuery = trimmed.replace(/['\u2018\u2019`´]/g, "’").trim();
+      const fallbackList = await fetchPage(curlyQuery);
+      if (fallbackList.length > 0) {
+        mediaList = fallbackList;
+      }
+    }
 
     return mediaList.map((m: any) => {
       const rawStatus = (m.status || "").toUpperCase();
@@ -462,44 +505,75 @@ export async function checkEpisodeAired(
     return { isAired: true, maxAiredEpisode: null };
   }
 
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) {
+    return {
+      isAired: false,
+      maxAiredEpisode: null,
+      reason:
+        "No internet connection. Please connect to the internet to verify the episode release schedule before logging.",
+    };
+  }
+
   try {
-    const response = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        query: `
-          query ($search: String) {
-            Media(search: $search, type: ANIME) {
-              id
-              title {
-                english
-                romaji
-              }
-              status
-              episodes
-              nextAiringEpisode {
-                episode
-                airingAt
+    const fetchSchedule = async (q: string) => {
+      const response = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          query: `
+            query ($search: String) {
+              Page(page: 1, perPage: 8) {
+                media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                  id
+                  title {
+                    english
+                    romaji
+                  }
+                  status
+                  episodes
+                  nextAiringEpisode {
+                    episode
+                    airingAt
+                  }
+                }
               }
             }
-          }
-        `,
-        variables: { search: trimmed },
-      }),
-    });
+          `,
+          variables: { search: q },
+        }),
+      });
 
-    if (!response.ok) {
+      if (!response.ok) return null;
+      const json = await response.json();
+      return (json?.data?.Page?.media as any[]) || [];
+    };
+
+    const asciiQuery = trimmed.replace(/[\u2018\u2019`´]/g, "'").trim();
+    let mediaList = await fetchSchedule(asciiQuery);
+
+    if ((!mediaList || mediaList.length === 0) && /['\u2018\u2019`´]/.test(trimmed)) {
+      const curlyQuery = trimmed.replace(/['\u2018\u2019`´]/g, "’").trim();
+      const fallbackList = await fetchSchedule(curlyQuery);
+      if (fallbackList && fallbackList.length > 0) {
+        mediaList = fallbackList;
+      }
+    }
+
+    if (!mediaList || mediaList.length === 0) {
       return { isAired: true, maxAiredEpisode: null };
     }
 
-    const json = await response.json();
-    const media = json?.data?.Media;
-    if (!media) {
-      return { isAired: true, maxAiredEpisode: null };
-    }
+    const targetNorm = normalizeTitle(trimmed);
+    const exact = mediaList.find(
+      (m: any) =>
+        normalizeTitle(m.title?.english) === targetNorm ||
+        normalizeTitle(m.title?.romaji) === targetNorm
+    );
+    const media = exact || mediaList[0];
 
     const nowSeconds = Math.floor(Date.now() / 1000);
 
@@ -540,7 +614,12 @@ export async function checkEpisodeAired(
     return { isAired: true, maxAiredEpisode: media.episodes || null };
   } catch (err) {
     console.warn("AniList airing check error:", err);
-    return { isAired: true, maxAiredEpisode: null };
+    return {
+      isAired: false,
+      maxAiredEpisode: null,
+      reason:
+        "Unable to verify episode release schedule with AniList. Please check your internet connection.",
+    };
   }
 }
 
@@ -592,32 +671,60 @@ export async function getShowFormats(
     await Promise.all(
       batch.map(async (show) => {
         try {
-          const response = await fetch("https://graphql.anilist.co", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify({
-              query: `
-                query ($search: String) {
-                  Media(search: $search, type: ANIME) {
-                    format
+          const fetchFormat = async (q: string) => {
+            const response = await fetch("https://graphql.anilist.co", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({
+                query: `
+                  query ($search: String) {
+                    Page(page: 1, perPage: 6) {
+                      media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                        title {
+                          english
+                          romaji
+                        }
+                        format
+                      }
+                    }
                   }
-                }
-              `,
-              variables: { search: show.title },
-            }),
-          });
+                `,
+                variables: { search: q },
+              }),
+            });
+            if (!response.ok) return [];
+            const json = await response.json();
+            return (json?.data?.Page?.media as any[]) || [];
+          };
 
-          if (!response.ok) return;
-          const json = await response.json();
-          const rawFormat = json?.data?.Media?.format;
-          if (rawFormat) {
-            const formatted = formatFormat(rawFormat);
-            if (formatted) {
-              result[show.id] = formatted;
-              AsyncStorage.setItem(`${FORMAT_CACHE_PREFIX}${show.id}`, formatted).catch(() => {});
+          const asciiQuery = show.title.replace(/[\u2018\u2019`´]/g, "'").trim();
+          let mediaList = await fetchFormat(asciiQuery);
+          if (mediaList.length === 0 && /['\u2018\u2019`´]/.test(show.title)) {
+            const curlyQuery = show.title.replace(/['\u2018\u2019`´]/g, "’").trim();
+            const fallbackList = await fetchFormat(curlyQuery);
+            if (fallbackList.length > 0) {
+              mediaList = fallbackList;
+            }
+          }
+
+          if (mediaList.length > 0) {
+            const targetNorm = normalizeTitle(show.title);
+            const exact = mediaList.find(
+              (m: any) =>
+                normalizeTitle(m.title?.english) === targetNorm ||
+                normalizeTitle(m.title?.romaji) === targetNorm
+            );
+            const media = exact || mediaList[0];
+            const rawFormat = media?.format;
+            if (rawFormat) {
+              const formatted = formatFormat(rawFormat);
+              if (formatted) {
+                result[show.id] = formatted;
+                AsyncStorage.setItem(`${FORMAT_CACHE_PREFIX}${show.id}`, formatted).catch(() => {});
+              }
             }
           }
         } catch {
