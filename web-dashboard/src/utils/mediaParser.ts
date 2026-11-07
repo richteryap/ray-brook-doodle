@@ -4,11 +4,13 @@ export interface ParsedMedia {
 }
 
 /**
- * Standardizes title strings for consistent matching and searching across quote styles.
+ * Standardizes title strings for consistent matching and searching across quote styles and diacritics.
  */
 export function normalizeTitle(title: string | null | undefined): string {
   if (!title) return '';
   return title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[\u2018\u2019`´']/g, "'")
     .replace(/[\u201C\u201D"]/g, '"')

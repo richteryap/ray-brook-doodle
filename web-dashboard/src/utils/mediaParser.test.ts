@@ -3,8 +3,8 @@ import { parseMediaTitle, normalizeTitle } from './mediaParser';
 
 describe('parseMediaTitle', () => {
   it('parses anime title and episode number correctly', () => {
-    const result = parseMediaTitle('Frieren: Beyond Journey\'s End Episode 28');
-    expect(result.title).toBe('Frieren: Beyond Journey\'s End');
+    const result = parseMediaTitle("Frieren: Beyond Journey's End Episode 28");
+    expect(result.title).toBe("Frieren: Beyond Journey's End");
     expect(result.episode).toBe(28);
   });
 
@@ -37,5 +37,11 @@ describe('normalizeTitle', () => {
   it('normalizes accents, spaces, and case consistently', () => {
     expect(normalizeTitle("  Frieren: Beyond Journey’s End  ")).toBe("frieren: beyond journey's end");
     expect(normalizeTitle("Komi Can`t Communicate")).toBe("komi can't communicate");
+  });
+
+  it('normalizes diacritics / accented characters (e.g. Fiancé to fiance)', () => {
+    const withAccent = normalizeTitle("Even Though I'm a Super Timid Noble Girl, I Accepted the Bet From My Cunning Fiancé");
+    const plainAscii = normalizeTitle("Even Though I'm a Super Timid Noble Girl, I Accepted the Bet From My Cunning Fiance");
+    expect(withAccent).toBe(plainAscii);
   });
 });

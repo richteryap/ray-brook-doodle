@@ -73,13 +73,22 @@ function formatSource(source: string | null | undefined): string {
 }
 
 /**
+ * Strips diacritics / accent marks (e.g. é -> e, ō -> o) using Unicode NFD decomposition.
+ * Essential for AniList search queries which fail on accented characters.
+ */
+export function stripDiacritics(text: string | null | undefined): string {
+  if (!text) return "";
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
  * Standardizes title strings for consistent matching across AniList and scraped sites.
- * Normalizes unicode single quotes (’ ‘), grave accents (`), acute accents (´) to standard ASCII apostrophe ('),
+ * Normalizes diacritics/accents, unicode single quotes (’ ‘), grave accents (`), acute accents (´),
  * collapses multiple spaces, and converts to lowercase.
  */
 export function normalizeTitle(title: string | null | undefined): string {
   if (!title) return "";
-  return title
+  return stripDiacritics(title)
     .toLowerCase()
     .replace(/[\u2018\u2019`´']/g, "'")
     .replace(/[\u201C\u201D"]/g, '"')
@@ -296,13 +305,13 @@ export async function getTitleDetails(
       return (json?.data?.Page?.media as any[]) || [];
     };
 
-    // 3a. Try query with standard ASCII apostrophes
-    const asciiQuery = searchTitle.replace(/[\u2018\u2019`´]/g, "'").trim();
+    // 3a. Try query with stripped diacritics and standard ASCII apostrophes
+    const asciiQuery = stripDiacritics(searchTitle).replace(/[\u2018\u2019`´]/g, "'").trim();
     let mediaList = await fetchAniListMedia(asciiQuery);
 
     // 3b. Fallback: If 0 results and title had quotes, try with curly apostrophes
     if ((!mediaList || mediaList.length === 0) && /['\u2018\u2019`´]/.test(searchTitle)) {
-      const curlyQuery = searchTitle.replace(/['\u2018\u2019`´]/g, "’").trim();
+      const curlyQuery = stripDiacritics(searchTitle).replace(/['\u2018\u2019`´]/g, "’").trim();
       const fallbackList = await fetchAniListMedia(curlyQuery);
       if (fallbackList && fallbackList.length > 0) {
         mediaList = fallbackList;
@@ -447,11 +456,11 @@ export async function searchAnimeTitles(query: string): Promise<AniListSearchRes
       return (json?.data?.Page?.media as any[]) || [];
     };
 
-    const asciiQuery = trimmed.replace(/[\u2018\u2019`´]/g, "'").trim();
+    const asciiQuery = stripDiacritics(trimmed).replace(/[\u2018\u2019`´]/g, "'").trim();
     let mediaList = await fetchPage(asciiQuery);
 
     if (mediaList.length === 0 && /['\u2018\u2019`´]/.test(trimmed)) {
-      const curlyQuery = trimmed.replace(/['\u2018\u2019`´]/g, "’").trim();
+      const curlyQuery = stripDiacritics(trimmed).replace(/['\u2018\u2019`´]/g, "’").trim();
       const fallbackList = await fetchPage(curlyQuery);
       if (fallbackList.length > 0) {
         mediaList = fallbackList;
@@ -552,11 +561,11 @@ export async function checkEpisodeAired(
       return (json?.data?.Page?.media as any[]) || [];
     };
 
-    const asciiQuery = trimmed.replace(/[\u2018\u2019`´]/g, "'").trim();
+    const asciiQuery = stripDiacritics(trimmed).replace(/[\u2018\u2019`´]/g, "'").trim();
     let mediaList = await fetchSchedule(asciiQuery);
 
     if ((!mediaList || mediaList.length === 0) && /['\u2018\u2019`´]/.test(trimmed)) {
-      const curlyQuery = trimmed.replace(/['\u2018\u2019`´]/g, "’").trim();
+      const curlyQuery = stripDiacritics(trimmed).replace(/['\u2018\u2019`´]/g, "’").trim();
       const fallbackList = await fetchSchedule(curlyQuery);
       if (fallbackList && fallbackList.length > 0) {
         mediaList = fallbackList;
@@ -700,10 +709,10 @@ export async function getShowFormats(
             return (json?.data?.Page?.media as any[]) || [];
           };
 
-          const asciiQuery = show.title.replace(/[\u2018\u2019`´]/g, "'").trim();
+          const asciiQuery = stripDiacritics(show.title).replace(/[\u2018\u2019`´]/g, "'").trim();
           let mediaList = await fetchFormat(asciiQuery);
           if (mediaList.length === 0 && /['\u2018\u2019`´]/.test(show.title)) {
-            const curlyQuery = show.title.replace(/['\u2018\u2019`´]/g, "’").trim();
+            const curlyQuery = stripDiacritics(show.title).replace(/['\u2018\u2019`´]/g, "’").trim();
             const fallbackList = await fetchFormat(curlyQuery);
             if (fallbackList.length > 0) {
               mediaList = fallbackList;
