@@ -45,7 +45,9 @@ interface SyncContextType {
   manualLogNewTitle: (
     title: string,
     totalEpisodes: number | null,
-    logDate: Date
+    logDate: Date,
+    synonyms?: string[],
+    romajiTitle?: string
   ) => Promise<{
     success: boolean;
     showId: string;
@@ -447,7 +449,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const manualLogNewTitle = async (
     title: string,
     totalEpisodes: number | null,
-    logDate: Date
+    logDate: Date,
+    synonyms?: string[],
+    romajiTitle?: string
   ): Promise<{
     success: boolean;
     showId: string;
@@ -462,9 +466,18 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("User not authenticated");
 
-    const existingShow = activeShows.find(
-      (s) => normalizeTitle(s.show_name) === normalizeTitle(title)
-    );
+    const candidates = [title, romajiTitle, ...(synonyms || [])].filter(Boolean) as string[];
+    const matchesTitle = (showName: string) => {
+      const norm = normalizeTitle(showName);
+      return candidates.some((c) => normalizeTitle(c) === norm);
+    };
+
+    const existingShow = activeShows.find((s) => matchesTitle(s.show_name));
+
+    const existingLibrary = libraryShows.find((s) => matchesTitle(s.show_name));
+    if (existingLibrary) {
+      throw new Error(`"${title}" is already in your completed Library.`);
+    }
 
     let showId = "";
     let isNewShow = false;

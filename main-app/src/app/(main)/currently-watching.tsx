@@ -42,6 +42,7 @@ export default function CurrentlyWatchingScreen() {
   
   const {
     activeShows,
+    libraryShows,
     syncStatus,
     syncWithCloud,
     dropActiveShows,
@@ -303,14 +304,34 @@ export default function CurrentlyWatchingScreen() {
   };
 
   const handleSelectAnime = (anime: AniListSearchResult) => {
-    // Check if anime is already in Currently Watching
-    const isAlreadyWatching = activeShows.some(
-      (s) => normalizeTitle(s.show_name) === normalizeTitle(anime.title)
-    );
+    // Helper to check if a local show name matches any canonical title or official synonym
+    const matchesAnime = (localShowName: string) => {
+      const normLocal = normalizeTitle(localShowName);
+      const candidates = [
+        anime.title,
+        anime.romajiTitle,
+        anime.nativeTitle,
+        ...(anime.synonyms || []),
+      ].filter(Boolean);
+      return candidates.some((c) => normalizeTitle(c) === normLocal);
+    };
+
+    // 1. Check if anime is already in Currently Watching
+    const isAlreadyWatching = activeShows.some((s) => matchesAnime(s.show_name));
     if (isAlreadyWatching) {
       Alert.alert(
         "Already in Watchlist",
         `"${anime.title}" is already in your Currently Watching list.`
+      );
+      return;
+    }
+
+    // 2. Check if anime is already in Library (Completed)
+    const isAlreadyInLibrary = libraryShows.some((s) => matchesAnime(s.show_name));
+    if (isAlreadyInLibrary) {
+      Alert.alert(
+        "Already in Library",
+        `"${anime.title}" is already in your completed Library.`
       );
       return;
     }
@@ -363,7 +384,9 @@ export default function CurrentlyWatchingScreen() {
       const result = await manualLogNewTitle(
         selectedAnime.title,
         selectedAnime.episodes,
-        chosenDate
+        chosenDate,
+        selectedAnime.synonyms,
+        selectedAnime.romajiTitle
       );
 
       setAddTitleModalVisible(false);
@@ -404,6 +427,8 @@ export default function CurrentlyWatchingScreen() {
           "Already Logged",
           `Episode 1 of "${selectedAnime.title}" has already been logged in your history.`
         );
+      } else if (msg.includes("already in your completed Library")) {
+        Alert.alert("Already in Library", msg);
       } else {
         Alert.alert("Unable to Add Title", msg);
       }

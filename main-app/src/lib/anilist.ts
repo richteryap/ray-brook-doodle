@@ -81,18 +81,58 @@ export function stripDiacritics(text: string | null | undefined): string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+const ROMAN_NUMERALS: Record<string, string> = {
+  i: "1", ii: "2", iii: "3", iv: "4", v: "5",
+  vi: "6", vii: "7", viii: "8", ix: "9", x: "10",
+};
+
+/**
+ * Normalizes synonymous season phrasing (e.g. '2nd Season' -> 'season 2', 'Season II' -> 'season 2', 'S2' -> 'season 2')
+ * for consistent internal comparison without altering artistic standalone titles (e.g. 'Tanya the Evil II', 'Mob Psycho 100 II').
+ */
+export function normalizeSeason(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(
+      /\bseason\s+(x|ix|viii|vii|vi|v|iv|iii|ii|i)\b/gi,
+      (_, r) => `season ${ROMAN_NUMERALS[r.toLowerCase()] || r}`
+    )
+    .replace(/\b(\d+)(st|nd|rd|th)\s+season\b/gi, "season $1")
+    .replace(/\bseason\s*[-_.]?\s*0*(\d+)\b/gi, "season $1")
+    .replace(/\bs0*(\d+)\b/gi, "season $1");
+}
+
 /**
  * Standardizes title strings for consistent matching across AniList and scraped sites.
- * Normalizes diacritics/accents, unicode single quotes (’ ‘), grave accents (`), acute accents (´),
+ * Normalizes diacritics/accents, synonymous season phrasing, unicode quotes,
  * collapses multiple spaces, and converts to lowercase.
  */
 export function normalizeTitle(title: string | null | undefined): string {
   if (!title) return "";
-  return stripDiacritics(title)
+  const stripped = stripDiacritics(title)
     .toLowerCase()
     .replace(/[\u2018\u2019`´']/g, "'")
     .replace(/[\u201C\u201D"]/g, '"')
     .replace(/\s+/g, " ")
+    .trim();
+
+  return normalizeSeason(stripped).replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Cleans queries before dispatching to AniList.
+ * Strips diacritics, normalizes quotes to ASCII, and formats ordinals to "Season N"
+ * which AniList's search engine ranks higher and more reliably.
+ */
+export function cleanSearchQuery(title: string): string {
+  if (!title) return "";
+  return stripDiacritics(title)
+    .replace(/[\u2018\u2019`´']/g, "'")
+    .replace(/\b(\d+)(st|nd|rd|th)\s+season\b/gi, "Season $1")
+    .replace(
+      /\bseason\s+(x|ix|viii|vii|vi|v|iv|iii|ii|i)\b/gi,
+      (_, r) => `Season ${ROMAN_NUMERALS[r.toLowerCase()] || r}`
+    )
     .trim();
 }
 
@@ -266,6 +306,7 @@ export async function getTitleDetails(
                     native
                     romaji
                   }
+                  synonyms
                   description(asHtml: false)
                   episodes
                   status
@@ -305,13 +346,13 @@ export async function getTitleDetails(
       return (json?.data?.Page?.media as any[]) || [];
     };
 
-    // 3a. Try query with stripped diacritics and standard ASCII apostrophes
-    const asciiQuery = stripDiacritics(searchTitle).replace(/[\u2018\u2019`´]/g, "'").trim();
+    // 3a. Try query with stripped diacritics, season normalization, and ASCII apostrophes
+    const asciiQuery = cleanSearchQuery(searchTitle);
     let mediaList = await fetchAniListMedia(asciiQuery);
 
     // 3b. Fallback: If 0 results and title had quotes, try with curly apostrophes
     if ((!mediaList || mediaList.length === 0) && /['\u2018\u2019`´]/.test(searchTitle)) {
-      const curlyQuery = stripDiacritics(searchTitle).replace(/['\u2018\u2019`´]/g, "’").trim();
+      const curlyQuery = cleanSearchQuery(searchTitle).replace(/'/g, "’");
       const fallbackList = await fetchAniListMedia(curlyQuery);
       if (fallbackList && fallbackList.length > 0) {
         mediaList = fallbackList;
@@ -326,14 +367,17 @@ export async function getTitleDetails(
       };
     }
 
-    // 3c. Match canonical media item using normalized titles
+    // 3c. Match canonical media item using normalized titles & official synonyms
     const targetNorm = normalizeTitle(searchTitle);
-    const exact = mediaList.find(
-      (m: any) =>
-        normalizeTitle(m.title?.english) === targetNorm ||
-        normalizeTitle(m.title?.romaji) === targetNorm ||
-        normalizeTitle(m.title?.native) === targetNorm
-    );
+    const exact = mediaList.find((m: any) => {
+      const candidates = [
+        m.title?.english,
+        m.title?.romaji,
+        m.title?.native,
+        ...(m.synonyms || []),
+      ].filter(Boolean);
+      return candidates.some((c: string) => normalizeTitle(c) === targetNorm);
+    });
     const media = exact || mediaList[0];
 
     const startStr = formatAniListDate(media.startDate);
@@ -400,6 +444,7 @@ export interface AniListSearchResult {
   title: string;
   romajiTitle: string;
   nativeTitle: string;
+  synonyms: string[];
   coverImageUrl: string | null;
   episodes: number | null;
   format: string | null;
@@ -435,6 +480,7 @@ export async function searchAnimeTitles(query: string): Promise<AniListSearchRes
                     romaji
                     native
                   }
+                  synonyms
                   coverImage {
                     medium
                     large
@@ -456,11 +502,11 @@ export async function searchAnimeTitles(query: string): Promise<AniListSearchRes
       return (json?.data?.Page?.media as any[]) || [];
     };
 
-    const asciiQuery = stripDiacritics(trimmed).replace(/[\u2018\u2019`´]/g, "'").trim();
+    const asciiQuery = cleanSearchQuery(trimmed);
     let mediaList = await fetchPage(asciiQuery);
 
     if (mediaList.length === 0 && /['\u2018\u2019`´]/.test(trimmed)) {
-      const curlyQuery = stripDiacritics(trimmed).replace(/['\u2018\u2019`´]/g, "’").trim();
+      const curlyQuery = cleanSearchQuery(trimmed).replace(/'/g, "’");
       const fallbackList = await fetchPage(curlyQuery);
       if (fallbackList.length > 0) {
         mediaList = fallbackList;
@@ -479,6 +525,7 @@ export async function searchAnimeTitles(query: string): Promise<AniListSearchRes
         title: m.title?.english || m.title?.romaji || trimmed,
         romajiTitle: m.title?.romaji || "",
         nativeTitle: m.title?.native || "",
+        synonyms: m.synonyms || [],
         coverImageUrl: m.coverImage?.medium || m.coverImage?.large || null,
         episodes: m.episodes || null,
         format: m.format || null,
@@ -542,6 +589,7 @@ export async function checkEpisodeAired(
                     english
                     romaji
                   }
+                  synonyms
                   status
                   episodes
                   nextAiringEpisode {
@@ -561,11 +609,11 @@ export async function checkEpisodeAired(
       return (json?.data?.Page?.media as any[]) || [];
     };
 
-    const asciiQuery = stripDiacritics(trimmed).replace(/[\u2018\u2019`´]/g, "'").trim();
+    const asciiQuery = cleanSearchQuery(trimmed);
     let mediaList = await fetchSchedule(asciiQuery);
 
     if ((!mediaList || mediaList.length === 0) && /['\u2018\u2019`´]/.test(trimmed)) {
-      const curlyQuery = stripDiacritics(trimmed).replace(/['\u2018\u2019`´]/g, "’").trim();
+      const curlyQuery = cleanSearchQuery(trimmed).replace(/'/g, "’");
       const fallbackList = await fetchSchedule(curlyQuery);
       if (fallbackList && fallbackList.length > 0) {
         mediaList = fallbackList;
@@ -577,11 +625,14 @@ export async function checkEpisodeAired(
     }
 
     const targetNorm = normalizeTitle(trimmed);
-    const exact = mediaList.find(
-      (m: any) =>
-        normalizeTitle(m.title?.english) === targetNorm ||
-        normalizeTitle(m.title?.romaji) === targetNorm
-    );
+    const exact = mediaList.find((m: any) => {
+      const candidates = [
+        m.title?.english,
+        m.title?.romaji,
+        ...(m.synonyms || []),
+      ].filter(Boolean);
+      return candidates.some((c: string) => normalizeTitle(c) === targetNorm);
+    });
     const media = exact || mediaList[0];
 
     const nowSeconds = Math.floor(Date.now() / 1000);
@@ -709,10 +760,10 @@ export async function getShowFormats(
             return (json?.data?.Page?.media as any[]) || [];
           };
 
-          const asciiQuery = stripDiacritics(show.title).replace(/[\u2018\u2019`´]/g, "'").trim();
+          const asciiQuery = cleanSearchQuery(show.title);
           let mediaList = await fetchFormat(asciiQuery);
           if (mediaList.length === 0 && /['\u2018\u2019`´]/.test(show.title)) {
-            const curlyQuery = stripDiacritics(show.title).replace(/['\u2018\u2019`´]/g, "’").trim();
+            const curlyQuery = cleanSearchQuery(show.title).replace(/'/g, "’");
             const fallbackList = await fetchFormat(curlyQuery);
             if (fallbackList.length > 0) {
               mediaList = fallbackList;
