@@ -12,11 +12,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSync } from "../../lib/SyncContext";
+import { getShowFormats } from "../../lib/anilist";
 
 interface LibraryItem {
   id: string;
   title: string;
   totalEpisodes: number;
+  type?: string;
 }
 
 export default function LibraryScreen() {
@@ -37,6 +39,17 @@ export default function LibraryScreen() {
         totalEpisodes: row.total_episodes || 0,
       }));
       setItems(formatted);
+
+      if (formatted.length > 0) {
+        getShowFormats(formatted).then((formatMap) => {
+          setItems((prev) =>
+            prev.map((item) => ({
+              ...item,
+              type: formatMap[item.id] || item.type,
+            }))
+          );
+        });
+      }
     }
   }, [libraryShows]);
 
@@ -173,16 +186,18 @@ export default function LibraryScreen() {
               onPress={() => router.push({ pathname: "/title/[id]", params: { id: item.id, title: item.title } })}
               className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex-row items-center justify-between px-3 py-3"
             >
-              <View className="flex-1 pr-4">
+              <View className="flex-1 pr-3">
                 <Text className="text-sm font-bold text-slate-900 dark:text-white" numberOfLines={2}>
                   {item.title}
                 </Text>
               </View>
-              <View className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
-                <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {item.totalEpisodes} {item.totalEpisodes === 1 ? "EP" : "EPs"}
-                </Text>
-              </View>
+              {item.type ? (
+                <View className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded border border-slate-200 dark:border-slate-600">
+                  <Text className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    {item.type}
+                  </Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
           )}
         />

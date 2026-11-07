@@ -14,6 +14,10 @@ export interface AniListMediaData {
   source: string;
   genres: string[];
   coverImageUrl: string | null;
+  format: string | null;
+  season: string | null;
+  seasonYear: number | null;
+  premiered: string | null;
 }
 
 interface CacheEntry {
@@ -25,6 +29,7 @@ interface CacheEntry {
 const CACHE_TTL_MS = 5 * 7 * 24 * 60 * 60 * 1000;
 const CACHE_KEY_PREFIX = "@anilist_cache_";
 const CACHE_INDEX_KEY = "@anilist_cache_index";
+const FORMAT_CACHE_PREFIX = "@anilist_format_";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -65,6 +70,50 @@ function formatSource(source: string | null | undefined): string {
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
+}
+
+export function formatFormat(rawFormat: string | null | undefined): string | null {
+  if (!rawFormat) return null;
+  switch (rawFormat.toUpperCase()) {
+    case "TV":
+      return "TV";
+    case "TV_SHORT":
+      return "TV Short";
+    case "MOVIE":
+      return "Movie";
+    case "ONA":
+      return "Ona";
+    case "OVA":
+      return "Ova";
+    case "SPECIAL":
+      return "Special";
+    case "MUSIC":
+      return "Music";
+    default:
+      return rawFormat.charAt(0).toUpperCase() + rawFormat.slice(1).toLowerCase();
+  }
+}
+
+export function formatSeason(
+  season: string | null | undefined,
+  seasonYear: number | null | undefined,
+  startDate?: { year?: number; month?: number } | null
+): string | null {
+  if (season && seasonYear) {
+    const s = season.charAt(0).toUpperCase() + season.slice(1).toLowerCase();
+    return `${s} ${seasonYear}`;
+  }
+  const year = seasonYear || startDate?.year;
+  if (!year) return null;
+  if (startDate?.month) {
+    const m = startDate.month;
+    let s = "Winter";
+    if (m >= 4 && m <= 6) s = "Spring";
+    else if (m >= 7 && m <= 9) s = "Summer";
+    else if (m >= 10 && m <= 12) s = "Fall";
+    return `${s} ${year}`;
+  }
+  return `${year}`;
 }
 
 function cleanDescription(rawText: string | null | undefined): string {
@@ -194,6 +243,9 @@ export async function getTitleDetails(
               description(asHtml: false)
               episodes
               status
+              format
+              season
+              seasonYear
               startDate {
                 year
                 month
@@ -257,6 +309,8 @@ export async function getTitleDetails(
     }
 
     const studioName = media.studios?.nodes?.[0]?.name || "Independent / Unknown";
+    const formattedFormat = formatFormat(media.format);
+    const premiered = formatSeason(media.season, media.seasonYear, media.startDate);
 
     const data: AniListMediaData = {
       id: media.id,
@@ -271,6 +325,12 @@ export async function getTitleDetails(
       source: formatSource(media.source),
       genres: media.genres || [],
       coverImageUrl: media.coverImage?.large || null,
+      format: formattedFormat,
+      season: media.season
+        ? media.season.charAt(0).toUpperCase() + media.season.slice(1).toLowerCase()
+        : null,
+      seasonYear: media.seasonYear || null,
+      premiered,
     };
 
     // 4. Save to cache with rolling timestamp
@@ -280,6 +340,9 @@ export async function getTitleDetails(
     };
 
     await AsyncStorage.setItem(cacheKey, JSON.stringify(entry));
+    if (formattedFormat) {
+      AsyncStorage.setItem(`${FORMAT_CACHE_PREFIX}${showId}`, formattedFormat).catch(() => {});
+    }
     recordCacheKey(showId);
 
     // Prune expired cache in background
@@ -479,4 +542,90 @@ export async function checkEpisodeAired(
     console.warn("AniList airing check error:", err);
     return { isAired: true, maxAiredEpisode: null };
   }
+}
+
+/**
+ * Loads format types for multiple titles (e.g. for Library cards).
+ * Checks local cache first (AsyncStorage), then fetches missing items from AniList.
+ */
+export async function getShowFormats(
+  shows: { id: string; title: string }[]
+): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  const missing: { id: string; title: string }[] = [];
+
+  // 1. Check local caches first
+  await Promise.all(
+    shows.map(async (show) => {
+      try {
+        const formatKey = `${FORMAT_CACHE_PREFIX}${show.id}`;
+        const cachedFormat = await AsyncStorage.getItem(formatKey);
+        if (cachedFormat) {
+          result[show.id] = cachedFormat;
+          return;
+        }
+
+        const detailKey = `${CACHE_KEY_PREFIX}${show.id}`;
+        const cachedDetailRaw = await AsyncStorage.getItem(detailKey);
+        if (cachedDetailRaw) {
+          const entry: CacheEntry = JSON.parse(cachedDetailRaw);
+          if (entry.data?.format) {
+            result[show.id] = entry.data.format;
+            AsyncStorage.setItem(formatKey, entry.data.format).catch(() => {});
+            return;
+          }
+        }
+
+        missing.push(show);
+      } catch {
+        missing.push(show);
+      }
+    })
+  );
+
+  if (missing.length === 0) return result;
+
+  // 2. Query missing in small batches from AniList
+  const BATCH_SIZE = 4;
+  for (let i = 0; i < missing.length; i += BATCH_SIZE) {
+    const batch = missing.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (show) => {
+        try {
+          const response = await fetch("https://graphql.anilist.co", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              query: `
+                query ($search: String) {
+                  Media(search: $search, type: ANIME) {
+                    format
+                  }
+                }
+              `,
+              variables: { search: show.title },
+            }),
+          });
+
+          if (!response.ok) return;
+          const json = await response.json();
+          const rawFormat = json?.data?.Media?.format;
+          if (rawFormat) {
+            const formatted = formatFormat(rawFormat);
+            if (formatted) {
+              result[show.id] = formatted;
+              AsyncStorage.setItem(`${FORMAT_CACHE_PREFIX}${show.id}`, formatted).catch(() => {});
+            }
+          }
+        } catch {
+          // Gracefully continue
+        }
+      })
+    );
+  }
+
+  return result;
 }

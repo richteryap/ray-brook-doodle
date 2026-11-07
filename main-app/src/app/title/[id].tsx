@@ -229,8 +229,21 @@ export default function TitleDetailsScreen() {
                   >
                     {animeData.englishTitle}
                   </Text>
+                  {animeData.romajiTitle &&
+                  animeData.romajiTitle.trim().toLowerCase() !==
+                    animeData.englishTitle.trim().toLowerCase() ? (
+                    <Text
+                      className="text-xs text-slate-600 dark:text-slate-300 font-medium italic mb-0.5"
+                      numberOfLines={2}
+                    >
+                      {animeData.romajiTitle}
+                    </Text>
+                  ) : null}
                   {animeData.nativeTitle ? (
-                    <Text className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    <Text
+                      className="text-xs text-slate-400 dark:text-slate-500 font-medium"
+                      numberOfLines={2}
+                    >
                       {animeData.nativeTitle}
                     </Text>
                   ) : null}
@@ -238,7 +251,14 @@ export default function TitleDetailsScreen() {
 
                 {/* Quick Info Tags */}
                 <View className="gap-y-1.5 mt-2">
-                  <View className="flex-row items-center">
+                  <View className="flex-row items-center flex-wrap gap-1.5">
+                    {animeData.format ? (
+                      <View className="px-2.5 py-0.5 rounded-md border bg-slate-900 dark:bg-white border-slate-900 dark:border-white">
+                        <Text className="text-[11px] font-bold text-white dark:text-slate-900">
+                          {animeData.format}
+                        </Text>
+                      </View>
+                    ) : null}
                     <View className="px-2.5 py-0.5 rounded-md border bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600">
                       <Text className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
                         {animeData.status}
@@ -259,6 +279,34 @@ export default function TitleDetailsScreen() {
 
           {/* Broadcast & Production Information */}
           <View className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 mb-3 gap-y-3">
+            {animeData.format ? (
+              <View className="flex-row items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
+                <View className="flex-row items-center">
+                  <Feather name="layers" size={16} color={iconMuted} />
+                  <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 ml-2">
+                    Type
+                  </Text>
+                </View>
+                <Text className="text-xs font-bold text-slate-900 dark:text-white">
+                  {animeData.format}
+                </Text>
+              </View>
+            ) : null}
+
+            {animeData.premiered ? (
+              <View className="flex-row items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
+                <View className="flex-row items-center">
+                  <Feather name="compass" size={16} color={iconMuted} />
+                  <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 ml-2">
+                    Premiered
+                  </Text>
+                </View>
+                <Text className="text-xs font-bold text-slate-900 dark:text-white">
+                  {animeData.premiered}
+                </Text>
+              </View>
+            ) : null}
+
             <View className="flex-row items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
               <View className="flex-row items-center">
                 <Feather name="video" size={16} color={iconMuted} />
