@@ -16,7 +16,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSync } from "../../lib/SyncContext";
-import { searchAnimeTitles, AniListSearchResult } from "../../lib/anilist";
+import {
+  searchAnimeTitles,
+  AniListSearchResult,
+  checkEpisodeAired,
+} from "../../lib/anilist";
 
 interface MediaItem {
   id: string;
@@ -58,6 +62,7 @@ export default function CurrentlyWatchingScreen() {
   const [logDateInput, setLogDateInput] = useState("");
   const [logTimeInput, setLogTimeInput] = useState("");
   const [isSubmittingLog, setIsSubmittingLog] = useState(false);
+  const [checkingShowId, setCheckingShowId] = useState<string | null>(null);
 
   // Add Title Modal State
   const [addTitleModalVisible, setAddTitleModalVisible] = useState(false);
@@ -97,13 +102,40 @@ export default function CurrentlyWatchingScreen() {
     };
   };
 
-  const openManualLog = (item: MediaItem) => {
-    const dt = getDeviceCurrentDateTime();
-    setLoggingShow(item);
-    setTargetEpisode(item.currentEpisode + 1);
-    setLogDateInput(dt.date);
-    setLogTimeInput(dt.time);
-    setLogModalVisible(true);
+  const openManualLog = async (item: MediaItem) => {
+    const nextEp = item.currentEpisode + 1;
+
+    // 1. Local fast check: If already completed
+    if (item.totalEpisodes && nextEp > item.totalEpisodes) {
+      Alert.alert(
+        "Series Completed",
+        `You have already logged all ${item.totalEpisodes} episodes of "${item.title}".`
+      );
+      return;
+    }
+
+    // 2. Airing validation against AniList
+    setCheckingShowId(item.id);
+    try {
+      const airingCheck = await checkEpisodeAired(item.title, nextEp);
+      if (!airingCheck.isAired) {
+        Alert.alert(
+          "Episode Not Aired Yet",
+          airingCheck.reason ||
+            `Episode ${nextEp} of "${item.title}" has not aired yet.`
+        );
+        return;
+      }
+
+      const dt = getDeviceCurrentDateTime();
+      setLoggingShow(item);
+      setTargetEpisode(nextEp);
+      setLogDateInput(dt.date);
+      setLogTimeInput(dt.time);
+      setLogModalVisible(true);
+    } finally {
+      setCheckingShowId(null);
+    }
   };
 
   const handleSaveLog = async () => {
@@ -656,17 +688,33 @@ export default function CurrentlyWatchingScreen() {
                       </TouchableOpacity>
 
                       {!isSelectionMode && (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => openManualLog(item)}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500 active:bg-emerald-600 flex-row items-center justify-center shadow-xs"
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Feather name="plus" size={12} color="#ffffff" />
-                          <Text className="text-xs font-bold text-white ml-0.5">
-                            1
-                          </Text>
-                        </TouchableOpacity>
+                        isCompleted ? (
+                          <View className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-700 flex-row items-center justify-center">
+                            <Feather name="check" size={12} color={iconMuted} />
+                            <Text className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">
+                              Done
+                            </Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => openManualLog(item)}
+                            disabled={checkingShowId === item.id}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500 active:bg-emerald-600 flex-row items-center justify-center shadow-xs min-w-[38px] h-[26px]"
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            {checkingShowId === item.id ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <>
+                                <Feather name="plus" size={12} color="#ffffff" />
+                                <Text className="text-xs font-bold text-white ml-0.5">
+                                  1
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
 

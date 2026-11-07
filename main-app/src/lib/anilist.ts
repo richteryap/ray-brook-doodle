@@ -378,3 +378,105 @@ export async function searchAnimeTitles(query: string): Promise<AniListSearchRes
     return [];
   }
 }
+
+export interface EpisodeAiringCheck {
+  isAired: boolean;
+  maxAiredEpisode: number | null;
+  reason?: string;
+}
+
+/**
+ * Checks whether a specific episode of an anime has actually aired.
+ * Uses AniList's nextAiringEpisode schedule for ongoing shows and
+ * total episodes count for finished anime.
+ */
+export async function checkEpisodeAired(
+  searchTitle: string,
+  targetEpisode: number
+): Promise<EpisodeAiringCheck> {
+  const trimmed = searchTitle.trim();
+  if (!trimmed || targetEpisode <= 0) {
+    return { isAired: true, maxAiredEpisode: null };
+  }
+
+  try {
+    const response = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        query: `
+          query ($search: String) {
+            Media(search: $search, type: ANIME) {
+              id
+              title {
+                english
+                romaji
+              }
+              status
+              episodes
+              nextAiringEpisode {
+                episode
+                airingAt
+              }
+            }
+          }
+        `,
+        variables: { search: trimmed },
+      }),
+    });
+
+    if (!response.ok) {
+      return { isAired: true, maxAiredEpisode: null };
+    }
+
+    const json = await response.json();
+    const media = json?.data?.Media;
+    if (!media) {
+      return { isAired: true, maxAiredEpisode: null };
+    }
+
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    // 1. If currently releasing with a scheduled next episode
+    if (media.status === "RELEASING" && media.nextAiringEpisode) {
+      const nextEp = media.nextAiringEpisode.episode;
+      const airingAt = media.nextAiringEpisode.airingAt;
+
+      // If next airing time is in the future, latest released is (nextEp - 1)
+      const maxAired = airingAt > nowSeconds ? nextEp - 1 : nextEp;
+      if (targetEpisode > maxAired) {
+        return {
+          isAired: false,
+          maxAiredEpisode: maxAired,
+          reason: `Episode ${targetEpisode} has not aired yet. The latest released episode is Episode ${maxAired}.`,
+        };
+      }
+    }
+
+    // 2. If finished or has total episodes limit
+    if (media.episodes && targetEpisode > media.episodes) {
+      return {
+        isAired: false,
+        maxAiredEpisode: media.episodes,
+        reason: `Episode ${targetEpisode} exceeds total released episodes (${media.episodes}).`,
+      };
+    }
+
+    // 3. If show status is NOT_YET_RELEASED
+    if (media.status === "NOT_YET_RELEASED") {
+      return {
+        isAired: false,
+        maxAiredEpisode: 0,
+        reason: `This series has not started airing yet.`,
+      };
+    }
+
+    return { isAired: true, maxAiredEpisode: media.episodes || null };
+  } catch (err) {
+    console.warn("AniList airing check error:", err);
+    return { isAired: true, maxAiredEpisode: null };
+  }
+}
