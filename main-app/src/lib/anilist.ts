@@ -250,7 +250,8 @@ export async function getTitleDetails(
   searchTitle: string,
   forceRefresh = false
 ): Promise<FetchTitleDetailsResult> {
-  const cacheKey = `${CACHE_KEY_PREFIX}${showId}`;
+  const normKey = normalizeTitle(searchTitle) || showId;
+  const cacheKey = `${CACHE_KEY_PREFIX}${normKey}`;
 
   // 1. Check local cache first (offline-first)
   if (!forceRefresh) {
@@ -423,8 +424,9 @@ export async function getTitleDetails(
     await AsyncStorage.setItem(cacheKey, JSON.stringify(entry));
     if (formattedFormat) {
       AsyncStorage.setItem(`${FORMAT_CACHE_PREFIX}${showId}`, formattedFormat).catch(() => {});
+      AsyncStorage.setItem(`${FORMAT_CACHE_PREFIX}${normKey}`, formattedFormat).catch(() => {});
     }
-    recordCacheKey(showId);
+    recordCacheKey(normKey);
 
     // Prune expired cache in background
     pruneExpiredCache().catch(() => {});
@@ -697,14 +699,17 @@ export async function getShowFormats(
   await Promise.all(
     shows.map(async (show) => {
       try {
+        const normTitle = normalizeTitle(show.title);
         const formatKey = `${FORMAT_CACHE_PREFIX}${show.id}`;
-        const cachedFormat = await AsyncStorage.getItem(formatKey);
+        const cachedFormat =
+          (await AsyncStorage.getItem(formatKey)) ||
+          (normTitle ? await AsyncStorage.getItem(`${FORMAT_CACHE_PREFIX}${normTitle}`) : null);
         if (cachedFormat) {
           result[show.id] = cachedFormat;
           return;
         }
 
-        const detailKey = `${CACHE_KEY_PREFIX}${show.id}`;
+        const detailKey = `${CACHE_KEY_PREFIX}${normTitle || show.id}`;
         const cachedDetailRaw = await AsyncStorage.getItem(detailKey);
         if (cachedDetailRaw) {
           const entry: CacheEntry = JSON.parse(cachedDetailRaw);
@@ -784,6 +789,10 @@ export async function getShowFormats(
               if (formatted) {
                 result[show.id] = formatted;
                 AsyncStorage.setItem(`${FORMAT_CACHE_PREFIX}${show.id}`, formatted).catch(() => {});
+                const norm = normalizeTitle(show.title);
+                if (norm) {
+                  AsyncStorage.setItem(`${FORMAT_CACHE_PREFIX}${norm}`, formatted).catch(() => {});
+                }
               }
             }
           }
