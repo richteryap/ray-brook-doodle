@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../lib/supabase";
+import { formatAuthError, supabase } from "../../lib/supabase";
 import * as Linking from 'expo-linking';
 
 export default function RegisterScreen() {
@@ -79,11 +79,7 @@ export default function RegisterScreen() {
     setLoading(false);
 
     if (error) {
-      if (error.message.includes("User already registered")) {
-        setAuthError("An account with this email address already exists.");
-      } else {
-        setAuthError(error.message);
-      }
+      setAuthError(formatAuthError(error));
     } else if (data.session === null) {
       setAuthSuccess(
         "Account created! Please check your inbox to verify your email address.",

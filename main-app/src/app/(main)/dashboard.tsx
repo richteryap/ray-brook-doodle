@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../lib/supabase";
+import { hasOfflineAuth, supabase } from "../../lib/supabase";
 import { useSync } from "../../lib/SyncContext";
 
 export default function DashboardScreen() {
@@ -39,9 +39,14 @@ export default function DashboardScreen() {
 
         const {
           data: { session },
+          error,
         } = await supabase.auth.getSession();
 
         if (!session) {
+          if (await hasOfflineAuth(error)) {
+            setIsAuthVerified(true);
+            return;
+          }
           router.replace("/login");
           return;
         }

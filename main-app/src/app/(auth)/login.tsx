@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../lib/supabase";
+import { formatAuthError, supabase } from "../../lib/supabase";
 import * as Linking from 'expo-linking';
 
 function extractRecoveryTokens(rawUrl: string | null) {
@@ -140,15 +140,7 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (error) {
-      if (error.message.includes("Invalid login credentials")) {
-        setAuthError("Incorrect email or password. Please try again.");
-      } else if (error.message.includes("Email not confirmed")) {
-        setAuthError("Please check your inbox and verify your email address.");
-      } else if (error.message.includes("Network request failed")) {
-        setAuthError("Network error. Please check your connection.");
-      } else {
-        setAuthError(error.message);
-      }
+      setAuthError(formatAuthError(error));
     } else {
       router.replace("/dashboard");
     }
@@ -175,7 +167,7 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (error) {
-      setAuthError(error.message);
+      setAuthError(formatAuthError(error));
     } else {
       showPopup(
         "Check your inbox",
@@ -209,7 +201,7 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (error) {
-      setAuthError(error.message);
+      setAuthError(formatAuthError(error));
     } else {
       showPopup(
         "Password Updated",

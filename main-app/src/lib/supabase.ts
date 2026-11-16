@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 import { createClient } from "@supabase/supabase-js";
 import { Platform } from "react-native";
 
@@ -48,3 +49,56 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+export function isNetworkError(error: any): boolean {
+  if (!error) return false;
+  const msg = typeof error === "string" ? error : error.message || "";
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes("network request failed") ||
+    lower.includes("fetch failed") ||
+    lower.includes("unknownhostexception") ||
+    lower.includes("unable to resolve host") ||
+    lower.includes("failed to connect") ||
+    lower.includes("no address associated with hostname") ||
+    lower.includes("networkerror") ||
+    lower.includes("failed to fetch")
+  );
+}
+
+export async function hasOfflineAuth(error?: any): Promise<boolean> {
+  try {
+    const cachedUsername = await AsyncStorage.getItem("cached_username");
+    if (!cachedUsername) return false;
+
+    const net = await NetInfo.fetch();
+    return !net.isConnected || isNetworkError(error);
+  } catch {
+    return false;
+  }
+}
+
+export function formatAuthError(error: any): string {
+  if (!error) return "";
+  const msg = typeof error === "string" ? error : error.message || "";
+  const lower = msg.toLowerCase();
+
+  if (isNetworkError(error)) {
+    return "No internet connection. Please check your network and try again.";
+  }
+
+  if (lower.includes("invalid login credentials")) {
+    return "Incorrect email or password. Please try again.";
+  }
+  if (lower.includes("email not confirmed")) {
+    return "Please check your inbox and verify your email address.";
+  }
+  if (lower.includes("user already registered")) {
+    return "An account with this email address already exists.";
+  }
+  if (lower.includes("rate limit") || lower.includes("too many requests")) {
+    return "Too many attempts. Please try again in a few minutes.";
+  }
+
+  return msg;
+}

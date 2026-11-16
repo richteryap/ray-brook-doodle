@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, Image, View, useColorScheme } from "react-native";
-import { supabase } from "../lib/supabase";
+import { hasOfflineAuth, supabase } from "../lib/supabase";
 
 export default function Index() {
   const router = useRouter();
@@ -15,18 +15,23 @@ export default function Index() {
       try {
         const {
           data: { session },
+          error,
         } = await supabase.auth.getSession();
 
         if (!isMounted) return;
 
-        if (session?.user) {
+        if (session?.user || (await hasOfflineAuth(error))) {
           router.replace("/dashboard");
         } else {
           router.replace("/login");
         }
-      } catch {
+      } catch (err) {
         if (!isMounted) return;
-        router.replace("/login");
+        if (await hasOfflineAuth(err)) {
+          router.replace("/dashboard");
+        } else {
+          router.replace("/login");
+        }
       }
     }
 

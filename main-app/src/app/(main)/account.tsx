@@ -20,7 +20,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../lib/supabase";
+import { hasOfflineAuth, supabase } from "../../lib/supabase";
 import { useSync } from "../../lib/SyncContext";
 
 type EditType = "username" | "email" | "password" | null;
@@ -79,6 +79,7 @@ export default function AccountScreen() {
 
       const {
         data: { session },
+        error,
       } = await supabase.auth.getSession();
 
       if (session?.user) {
@@ -89,13 +90,13 @@ export default function AccountScreen() {
           await AsyncStorage.setItem("cached_email", user.email);
         }
 
-        const { data, error } = await supabase
+        const { data, error: profileError } = await supabase
           .from("profiles")
           .select("username, api_key, public_uid")
           .eq("id", user.id)
           .single();
 
-        if (data && !error) {
+        if (data && !profileError) {
           if (data.username !== cachedUsername) {
             setUsername(data.username);
             await AsyncStorage.setItem("cached_username", data.username);
@@ -116,6 +117,8 @@ export default function AccountScreen() {
         } else if (!cachedUsername) {
           setUsername("Unknown User");
         }
+      } else if (await hasOfflineAuth(error)) {
+        // Offline with cached account: cached data already populated above
       } else {
         router.replace("/login");
       }

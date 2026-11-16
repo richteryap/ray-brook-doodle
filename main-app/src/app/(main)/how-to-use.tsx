@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../lib/supabase";
+import { hasOfflineAuth, supabase } from "../../lib/supabase";
 
 export default function HowToUseScreen() {
   const router = useRouter();
@@ -22,8 +22,9 @@ export default function HowToUseScreen() {
     async function requireAuth() {
       const {
         data: { session },
+        error,
       } = await supabase.auth.getSession();
-      if (!session) {
+      if (!session && !(await hasOfflineAuth(error))) {
         router.replace("/login");
       }
     }
