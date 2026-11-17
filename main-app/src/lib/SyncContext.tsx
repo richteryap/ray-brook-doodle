@@ -24,6 +24,7 @@ interface SyncContextType {
   markAsOutdated: () => void;
   dropActiveShows: (ids: string[]) => Promise<void>;
   moveToLibrary: (ids: string[]) => Promise<void>;
+  unarchiveToWatching: (ids: string[]) => Promise<void>;
   clearData: () => Promise<void>;
   manualLogEpisode: (
     showId: string,
@@ -63,6 +64,16 @@ interface SyncContextType {
     previousEpisode?: number,
     previousDate?: string
   ) => Promise<void>;
+  addTitleToLibrary: (
+    title: string,
+    totalEpisodes: number | null,
+    synonyms?: string[],
+    romajiTitle?: string
+  ) => Promise<{
+    success: boolean;
+    showId: string;
+  }>;
+  undoAddTitleToLibrary: (showId: string) => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -281,6 +292,26 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       await syncWithCloud();
     } catch (error) {
       console.error("Error moving to library:", error);
+    }
+  };
+
+  const unarchiveToWatching = async (ids: string[]) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { error } = await supabase
+        .from("active_shows")
+        .update({ is_archived: false })
+        .eq("user_id", session.user.id)
+        .in("id", ids);
+
+      if (error) throw error;
+      await syncWithCloud();
+    } catch (error) {
+      console.error("Error unarchiving to watching:", error);
     }
   };
 
@@ -674,6 +705,105 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addTitleToLibrary = async (
+    title: string,
+    totalEpisodes: number | null,
+    synonyms?: string[],
+    romajiTitle?: string
+  ): Promise<{
+    success: boolean;
+    showId: string;
+  }> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
+      throw new Error("You must be logged in to add a series to the library.");
+    }
+
+    const matchesTarget = (localShowName: string) => {
+      const normLocal = normalizeTitle(localShowName);
+      const candidates = [title, romajiTitle, ...(synonyms || [])].filter(Boolean);
+      return candidates.some((c) => normalizeTitle(c) === normLocal);
+    };
+
+    if (activeShows.some((s) => matchesTarget(s.show_name))) {
+      throw new Error(`"${title}" is already in your Currently Watching list.`);
+    }
+
+    if (libraryShows.some((s) => matchesTarget(s.show_name))) {
+      throw new Error(`"${title}" is already in your completed Library.`);
+    }
+
+    const isoDate = new Date().toISOString();
+    const episodeCount = totalEpisodes ?? 0;
+
+    const { data: newShowData, error: insertShowErr } = await supabase
+      .from("active_shows")
+      .insert({
+        user_id: session.user.id,
+        show_name: title,
+        latest_episode: episodeCount,
+        total_episodes: totalEpisodes,
+        updated_at: isoDate,
+        is_archived: true,
+      })
+      .select()
+      .single();
+
+    if (insertShowErr) throw insertShowErr;
+    const showId = newShowData.id;
+
+    const newLibraryShow = {
+      id: showId,
+      user_id: session.user.id,
+      show_name: title,
+      latest_episode: episodeCount,
+      total_episodes: totalEpisodes,
+      updated_at: isoDate,
+      is_archived: true,
+    };
+
+    const updatedLibraryShows = [newLibraryShow, ...libraryShows];
+    setLibraryShows(updatedLibraryShows);
+
+    await AsyncStorage.setItem(
+      "local_library_shows",
+      JSON.stringify(updatedLibraryShows)
+    );
+
+    return {
+      success: true,
+      showId,
+    };
+  };
+
+  const undoAddTitleToLibrary = async (showId: string) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { error: delErr } = await supabase
+        .from("active_shows")
+        .delete()
+        .eq("id", showId)
+        .eq("user_id", session.user.id);
+
+      if (delErr) console.warn("Failed to delete library show in undo:", delErr);
+
+      const updatedLibraryShows = libraryShows.filter((s) => s.id !== showId);
+      setLibraryShows(updatedLibraryShows);
+      await AsyncStorage.setItem(
+        "local_library_shows",
+        JSON.stringify(updatedLibraryShows)
+      );
+    } catch (error) {
+      console.error("Error in undoAddTitleToLibrary:", error);
+    }
+  };
+
   return (
     <SyncContext.Provider
       value={{
@@ -686,11 +816,14 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         markAsOutdated,
         dropActiveShows,
         moveToLibrary,
+        unarchiveToWatching,
         clearData,
         manualLogEpisode,
         undoManualLog,
         manualLogNewTitle,
         undoManualLogNewTitle,
+        addTitleToLibrary,
+        undoAddTitleToLibrary,
       }}
     >
       {children}
