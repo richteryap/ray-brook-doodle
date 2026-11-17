@@ -14,6 +14,87 @@ import { normalizeTitle } from "./anilist";
 
 export type SyncStatus = "synced" | "syncing" | "offline" | "outdated";
 
+interface PendingSyncAction {
+  id: string;
+  type: "archive" | "unarchive" | "drop";
+  ids: string[];
+}
+
+const PENDING_SYNC_KEY = "@pending_sync_actions";
+
+async function getPendingSyncActions(): Promise<PendingSyncAction[]> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_SYNC_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function savePendingSyncActions(actions: PendingSyncAction[]) {
+  try {
+    if (actions.length === 0) {
+      await AsyncStorage.removeItem(PENDING_SYNC_KEY);
+    } else {
+      await AsyncStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(actions));
+    }
+  } catch (e) {
+    console.error("Failed to save pending sync actions:", e);
+  }
+}
+
+async function queueSyncAction(type: "archive" | "unarchive" | "drop", ids: string[]) {
+  if (!ids || ids.length === 0) return;
+  const actions = await getPendingSyncActions();
+  actions.push({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    type,
+    ids,
+  });
+  await savePendingSyncActions(actions);
+}
+
+async function flushPendingSyncActions(userId: string): Promise<boolean> {
+  const actions = await getPendingSyncActions();
+  if (actions.length === 0) return true;
+
+  const remaining = [...actions];
+  while (remaining.length > 0) {
+    const action = remaining[0];
+    try {
+      if (action.type === "archive") {
+        const { error } = await supabase
+          .from("active_shows")
+          .update({ is_archived: true })
+          .eq("user_id", userId)
+          .in("id", action.ids);
+        if (error) throw error;
+      } else if (action.type === "unarchive") {
+        const { error } = await supabase
+          .from("active_shows")
+          .update({ is_archived: false })
+          .eq("user_id", userId)
+          .in("id", action.ids);
+        if (error) throw error;
+      } else if (action.type === "drop") {
+        const { error } = await supabase
+          .from("active_shows")
+          .delete()
+          .eq("user_id", userId)
+          .in("id", action.ids);
+        if (error) throw error;
+      }
+      remaining.shift();
+      await savePendingSyncActions(remaining);
+    } catch (err) {
+      console.warn("Error flushing pending sync action:", err);
+      await savePendingSyncActions(remaining);
+      return false;
+    }
+  }
+  return true;
+}
+
 interface SyncContextType {
   syncStatus: SyncStatus;
   lastSynced: Date | null;
@@ -86,6 +167,17 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<any[]>([]);
   const isSyncingRef = useRef(false);
 
+  const activeShowsRef = useRef<any[]>([]);
+  const libraryShowsRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    activeShowsRef.current = activeShows;
+  }, [activeShows]);
+
+  useEffect(() => {
+    libraryShowsRef.current = libraryShows;
+  }, [libraryShows]);
+
   useEffect(() => {
     async function loadLocalData() {
       const cachedShows = await AsyncStorage.getItem("local_active_shows");
@@ -93,8 +185,16 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const cachedSyncTime = await AsyncStorage.getItem("last_synced");
       const cachedLibrary = await AsyncStorage.getItem("local_library_shows");
 
-      if (cachedShows) setActiveShows(JSON.parse(cachedShows));
-      if (cachedLibrary) setLibraryShows(JSON.parse(cachedLibrary));
+      if (cachedShows) {
+        const parsed = JSON.parse(cachedShows);
+        activeShowsRef.current = parsed;
+        setActiveShows(parsed);
+      }
+      if (cachedLibrary) {
+        const parsed = JSON.parse(cachedLibrary);
+        libraryShowsRef.current = parsed;
+        setLibraryShows(parsed);
+      }
       if (cachedLogs) setLogs(JSON.parse(cachedLogs));
       if (cachedSyncTime) setLastSynced(new Date(cachedSyncTime));
     }
@@ -125,6 +225,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
       const user = session.user;
 
+      await flushPendingSyncActions(user.id);
+
       const [showsRes, logsRes] = await Promise.all([
         supabase
           .from("active_shows")
@@ -147,7 +249,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const watching = allShows.filter((show) => !show.is_archived);
       const completed = allShows.filter((show) => show.is_archived);
 
+      activeShowsRef.current = watching;
       setActiveShows(watching);
+      libraryShowsRef.current = completed;
       setLibraryShows(completed);
       setLogs(logsRes.data || []);
 
@@ -171,6 +275,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearData = async () => {
+    activeShowsRef.current = [];
+    libraryShowsRef.current = [];
     setActiveShows([]);
     setLibraryShows([]);
     setLogs([]);
@@ -182,6 +288,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       "local_library_shows",
       "local_logs",
       "last_synced",
+      PENDING_SYNC_KEY,
     ]);
   };
 
@@ -276,11 +383,42 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const markAsOutdated = useCallback(() => setSyncStatus("outdated"), []);
 
   const moveToLibrary = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+
+    const currentActive = activeShowsRef.current;
+    const currentLibrary = libraryShowsRef.current;
+
+    const showsToMove = currentActive.filter((s) => ids.includes(s.id));
+    const nextActive = currentActive.filter((s) => !ids.includes(s.id));
+    const nextLibrary = [
+      ...showsToMove.map((s) => ({ ...s, is_archived: true })),
+      ...currentLibrary,
+    ];
+
+    activeShowsRef.current = nextActive;
+    libraryShowsRef.current = nextLibrary;
+    setActiveShows(nextActive);
+    setLibraryShows(nextLibrary);
+
+    await AsyncStorage.multiSet([
+      ["local_active_shows", JSON.stringify(nextActive)],
+      ["local_library_shows", JSON.stringify(nextLibrary)],
+    ]);
+
     try {
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        await queueSyncAction("archive", ids);
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        await queueSyncAction("archive", ids);
+        return;
+      }
 
       const { error } = await supabase
         .from("active_shows")
@@ -291,16 +429,48 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       await syncWithCloud();
     } catch (error) {
-      console.error("Error moving to library:", error);
+      console.warn("Error moving to library online, queuing for sync:", error);
+      await queueSyncAction("archive", ids);
     }
   };
 
   const unarchiveToWatching = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+
+    const currentActive = activeShowsRef.current;
+    const currentLibrary = libraryShowsRef.current;
+
+    const showsToRestore = currentLibrary.filter((s) => ids.includes(s.id));
+    const nextLibrary = currentLibrary.filter((s) => !ids.includes(s.id));
+    const nextActive = [
+      ...showsToRestore.map((s) => ({ ...s, is_archived: false })),
+      ...currentActive,
+    ];
+
+    activeShowsRef.current = nextActive;
+    libraryShowsRef.current = nextLibrary;
+    setActiveShows(nextActive);
+    setLibraryShows(nextLibrary);
+
+    await AsyncStorage.multiSet([
+      ["local_active_shows", JSON.stringify(nextActive)],
+      ["local_library_shows", JSON.stringify(nextLibrary)],
+    ]);
+
     try {
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        await queueSyncAction("unarchive", ids);
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        await queueSyncAction("unarchive", ids);
+        return;
+      }
 
       const { error } = await supabase
         .from("active_shows")
@@ -311,16 +481,36 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       await syncWithCloud();
     } catch (error) {
-      console.error("Error unarchiving to watching:", error);
+      console.warn("Error unarchiving to watching online, queuing for sync:", error);
+      await queueSyncAction("unarchive", ids);
     }
   };
 
   const dropActiveShows = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+
+    const currentActive = activeShowsRef.current;
+    const nextActive = currentActive.filter((s) => !ids.includes(s.id));
+
+    activeShowsRef.current = nextActive;
+    setActiveShows(nextActive);
+
+    await AsyncStorage.setItem("local_active_shows", JSON.stringify(nextActive));
+
     try {
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        await queueSyncAction("drop", ids);
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        await queueSyncAction("drop", ids);
+        return;
+      }
 
       const { error } = await supabase
         .from("active_shows")
@@ -331,7 +521,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       await syncWithCloud();
     } catch (error) {
-      console.error("Error dropping shows:", error);
+      console.warn("Error dropping shows online, queuing for sync:", error);
+      await queueSyncAction("drop", ids);
     }
   };
 
@@ -764,7 +955,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       is_archived: true,
     };
 
-    const updatedLibraryShows = [newLibraryShow, ...libraryShows];
+    const updatedLibraryShows = [newLibraryShow, ...libraryShowsRef.current];
+    libraryShowsRef.current = updatedLibraryShows;
     setLibraryShows(updatedLibraryShows);
 
     await AsyncStorage.setItem(
@@ -780,10 +972,28 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const undoAddTitleToLibrary = async (showId: string) => {
     try {
+      const currentLibrary = libraryShowsRef.current;
+      const updatedLibraryShows = currentLibrary.filter((s) => s.id !== showId);
+      libraryShowsRef.current = updatedLibraryShows;
+      setLibraryShows(updatedLibraryShows);
+      await AsyncStorage.setItem(
+        "local_library_shows",
+        JSON.stringify(updatedLibraryShows)
+      );
+
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        await queueSyncAction("drop", [showId]);
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        await queueSyncAction("drop", [showId]);
+        return;
+      }
 
       const { error: delErr } = await supabase
         .from("active_shows")
@@ -791,16 +1001,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         .eq("id", showId)
         .eq("user_id", session.user.id);
 
-      if (delErr) console.warn("Failed to delete library show in undo:", delErr);
-
-      const updatedLibraryShows = libraryShows.filter((s) => s.id !== showId);
-      setLibraryShows(updatedLibraryShows);
-      await AsyncStorage.setItem(
-        "local_library_shows",
-        JSON.stringify(updatedLibraryShows)
-      );
+      if (delErr) {
+        console.warn("Failed to delete library show in undo, queuing drop:", delErr);
+        await queueSyncAction("drop", [showId]);
+      }
     } catch (error) {
       console.error("Error in undoAddTitleToLibrary:", error);
+      await queueSyncAction("drop", [showId]);
     }
   };
 
