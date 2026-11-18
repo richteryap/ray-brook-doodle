@@ -1,10 +1,13 @@
+"use client";
+
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export default function Login() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,10 +18,11 @@ export default function Login() {
     setLoading(true);
     setError(null);
 
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
     if (authError) {
       setError(authError.message);
@@ -28,15 +32,15 @@ export default function Login() {
 
     if (authData.user) {
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('public_uid')
-        .eq('id', authData.user.id)
+        .from("profiles")
+        .select("public_uid")
+        .eq("id", authData.user.id)
         .single();
-        
+
       if (profile?.public_uid) {
-        navigate(`/u/${profile.public_uid}`);
+        router.push(`/u/${profile.public_uid}`);
       } else {
-        navigate("/");
+        router.push("/");
       }
     }
   };
@@ -46,9 +50,15 @@ export default function Login() {
       <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100 p-10">
         <div className="flex flex-col items-center mb-8 text-center">
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-            <img src="/logo.png" alt="Ray Brook" className="w-8 h-8 object-contain" />
+            <img
+              src="/logo.png"
+              alt="Ray Brook"
+              className="w-8 h-8 object-contain"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Welcome Back</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">
+            Welcome Back
+          </h1>
           <p className="text-slate-500 text-sm">Sign in to Ray Brook</p>
         </div>
 
@@ -58,9 +68,11 @@ export default function Login() {
               {error}
             </div>
           )}
-          
+
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Email</label>
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              Email
+            </label>
             <input
               type="email"
               value={email}
@@ -73,8 +85,13 @@ export default function Login() {
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-bold text-slate-700">Password</label>
-              <Link to="/forgot-password" className="text-sm font-bold text-slate-900 hover:underline">
+              <label className="block text-sm font-bold text-slate-700">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-bold text-slate-900 hover:underline"
+              >
                 Forgot password?
               </Link>
             </div>
@@ -99,7 +116,10 @@ export default function Login() {
 
         <p className="text-center text-sm text-slate-500 mt-8">
           Don't have an account?{" "}
-          <Link to="/register" className="font-bold text-slate-900 hover:underline">
+          <Link
+            href="/register"
+            className="font-bold text-slate-900 hover:underline"
+          >
             Sign up
           </Link>
         </p>

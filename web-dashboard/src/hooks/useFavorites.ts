@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 export interface SavedProfile {
   uid: string;
@@ -7,44 +7,50 @@ export interface SavedProfile {
 }
 
 export function useFavorites(currentUid?: string, currentName?: string) {
-  const [accounts, setAccounts] = useState<SavedProfile[]>(() => {
+  const [accounts, setAccounts] = useState<SavedProfile[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
     try {
-      const stored = localStorage.getItem('raybrook_favorites');
-      return stored ? JSON.parse(stored) : [];
+      const stored = localStorage.getItem("raybrook_favorites");
+      if (stored) {
+        setAccounts(JSON.parse(stored));
+      }
     } catch {
       console.error("Failed to parse favorites payload");
-      return [];
+    } finally {
+      setIsLoaded(true);
     }
-  });
+  }, []);
 
   // Auto-save current valid profile (Strict Duplicate Prevention)
   useEffect(() => {
-    if (!currentUid || !currentName) return;
+    if (!isLoaded || !currentUid || !currentName) return;
 
     setAccounts((prev) => {
       const existingIndex = prev.findIndex((a) => a.uid === currentUid);
 
-      // If the UID is already saved...
       if (existingIndex !== -1) {
-        // Check if they changed their profile name and update it silently
         if (prev[existingIndex].profileName !== currentName) {
           const updatedAccounts = [...prev];
           updatedAccounts[existingIndex].profileName = currentName;
-          localStorage.setItem('raybrook_favorites', JSON.stringify(updatedAccounts));
+          localStorage.setItem(
+            "raybrook_favorites",
+            JSON.stringify(updatedAccounts)
+          );
           return updatedAccounts;
         }
-        return prev; // No changes needed
+        return prev;
       }
 
-      // Brand new UID, add it
       const newAccounts = [
         ...prev,
         { uid: currentUid, profileName: currentName, isFavorite: false },
       ];
-      localStorage.setItem('raybrook_favorites', JSON.stringify(newAccounts));
+      localStorage.setItem("raybrook_favorites", JSON.stringify(newAccounts));
       return newAccounts;
     });
-  }, [currentUid, currentName]);
+  }, [isLoaded, currentUid, currentName]);
 
   // Toggle Star Status (Sorts favorites to the front of saved profiles)
   const toggleFavorite = () => {
@@ -54,7 +60,7 @@ export function useFavorites(currentUid?: string, currentName?: string) {
       const newAccounts = prev.map((acc) =>
         acc.uid === currentUid ? { ...acc, isFavorite: !acc.isFavorite } : acc
       );
-      localStorage.setItem('raybrook_favorites', JSON.stringify(newAccounts));
+      localStorage.setItem("raybrook_favorites", JSON.stringify(newAccounts));
       return newAccounts;
     });
   };
@@ -62,14 +68,16 @@ export function useFavorites(currentUid?: string, currentName?: string) {
   // Remove Account
   const deleteSavedAccount = (e: React.MouseEvent, uidToRemove: string) => {
     e.stopPropagation();
+
     setAccounts((prev) => {
       const newAccounts = prev.filter((acc) => acc.uid !== uidToRemove);
-      localStorage.setItem('raybrook_favorites', JSON.stringify(newAccounts));
+      localStorage.setItem("raybrook_favorites", JSON.stringify(newAccounts));
       return newAccounts;
     });
   };
 
-  const isCurrentFavorite = accounts.find((a) => a.uid === currentUid)?.isFavorite || false;
+  const isCurrentFavorite =
+    accounts.find((a) => a.uid === currentUid)?.isFavorite || false;
 
   // Sort Favorites to the left (starred first), then alphabetically
   const sortedAccounts = [...accounts].sort((a, b) => {
@@ -79,10 +87,12 @@ export function useFavorites(currentUid?: string, currentName?: string) {
     return a.isFavorite ? -1 : 1;
   });
 
-  return { 
-    sortedAccounts, 
-    isCurrentFavorite, 
-    toggleFavorite, 
-    deleteSavedAccount 
+  return {
+    accounts,
+    sortedAccounts,
+    isCurrentFavorite,
+    isLoaded,
+    toggleFavorite,
+    deleteSavedAccount,
   };
 }

@@ -1,15 +1,17 @@
+"use client";
+
 import { Loader2, KeyRound } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function UpdatePassword() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   useEffect(() => {
     supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
@@ -27,9 +29,12 @@ export default function UpdatePassword() {
       return;
     }
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/;
     if (!passwordRegex.test(password)) {
-      setError("Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character.");
+      setError(
+        "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character."
+      );
       return;
     }
 
@@ -41,7 +46,7 @@ export default function UpdatePassword() {
       setError(updateError.message);
       setLoading(false);
     } else {
-      navigate("/");
+      router.push("/");
     }
   };
 
@@ -62,9 +67,11 @@ export default function UpdatePassword() {
               {error}
             </div>
           )}
-          
+
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">New Password</label>
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              New Password
+            </label>
             <input
               type="password"
               value={password}
@@ -76,7 +83,9 @@ export default function UpdatePassword() {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Confirm Password</label>
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              Confirm Password
+            </label>
             <input
               type="password"
               value={confirmPassword}
@@ -92,7 +101,11 @@ export default function UpdatePassword() {
             disabled={loading}
             className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-4 rounded-xl transition-colors flex justify-center items-center mt-6"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Password"}
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              "Update Password"
+            )}
           </button>
         </form>
       </div>
